@@ -154,32 +154,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const socialLogin = async (provider: 'google' | 'apple') => {
     try {
       setLoading(true);
-      
+
       if (provider === 'google') {
         try {
           // Initialize Google authentication
           await authService.initGoogleAuth();
-          
+
           // Prompt the user for Google Sign-In
           const response = await authService.promptGoogleSignIn(GOOGLE_CLIENT_ID);
-          
+
           // Send the Google credential to our backend
-          const user = await apiService.post('/auth/social-login', { 
-            provider, 
-            token: response.credential 
+          const user = await apiService.post('/auth/social-login', {
+            provider,
+            token: response.credential
           });
-          
+
           // Validate the response
           if (!user || !user.id || !user.email) {
             throw new Error('Invalid response from server');
           }
-          
+
           // Save user to local storage
           localStorage.setItem('waterfall_user', JSON.stringify(user));
-          
+
           // Update state
           setUser(user);
-          
+
           return user;
         } catch (error) {
           console.error('Google login error:', error);
@@ -188,18 +188,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else if (provider === 'apple') {
         // Apple authentication will be implemented later
         const user = await apiService.post('/auth/social-login', { provider });
-        
+
         // Validate the response
         if (!user || !user.id || !user.email) {
           throw new Error('Invalid response from server');
         }
-        
+
         // Save user to local storage
         localStorage.setItem('waterfall_user', JSON.stringify(user));
-        
+
         // Update state
         setUser(user);
-        
+
         return user;
       } else {
         throw new Error('Unsupported provider');
@@ -214,14 +214,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Provide the context
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      loading, 
-      login, 
-      logout, 
-      register, 
-      isAuthenticated: !!user, 
-      socialLogin 
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      login,
+      logout,
+      register,
+      isAuthenticated: !!user,
+      socialLogin
     }}>
       {children}
     </AuthContext.Provider>

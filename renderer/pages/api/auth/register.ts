@@ -23,13 +23,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         displayName,
         createdAt
       });
-      
+
       // Return successful response
-      return res.status(201).json(user);
+      return res.status(201).json({ message: 'Registration successful', data: user });
     } catch (error) {
       // Handle service-level errors with appropriate status codes
       console.error('Registration error:', error);
-      
+
       if (error.message === 'Invalid email format' || error.message === 'Invalid password format') {
         return res.status(400).json({ message: error.message });
       } else if (error.message === 'User with this email already exists') {

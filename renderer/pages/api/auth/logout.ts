@@ -10,10 +10,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // In a real app with server-side sessions, you'd invalidate the session here
     // For this demo, we'll just return a success message since the client will
     // remove the user from localStorage
-    
+
     // Optional: you could log the logout event in your database
-    
-    return res.status(200).json({ message: 'Logged out successfully' });
+
+    return res.status(204).json({ message: 'Logged out successfully' });
   } catch (error) {
     console.error('Logout error:', error);
     return res.status(500).json({ message: 'An error occurred during logout', error: error.message });

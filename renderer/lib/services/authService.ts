@@ -124,7 +124,7 @@ export const authService = {
     const passwordHash = 'hashed_' + decryptedPassword;
 
     // Create the user
-    const newUser = await firebaseService.addUser({
+    const newUser = await firebaseService.createUser({
       email,
       displayName: displayName || email.split('@')[0],
       passwordHash,

@@ -18,14 +18,15 @@ import { FaTimes } from "react-icons/fa"
 import useSqlQuery from "../lib/hooks/useSqlQuery"
 import { useProjectStore } from "../lib/states/projects.provider"
 import TextInput from "./TextInput"
-import { ProjectViewModel } from "../lib/states/projects.store"
+import { ProjectViewModel } from "@/lib/models"
+import { useAuth } from "@/lib/contexts/authContext"
 
 interface DatabaseConnectionFormProps {
     isOpen: boolean
 }
 function DatabaseConnectionForm({ isOpen }: DatabaseConnectionFormProps) {
     const { projectsArrState, addProject } = useProjectStore(state => state)
-
+    const { user } = useAuth()
     const [projectName, setProjectName] = useState("sample")
     const [server, setServerName] = useState("sandboxvbasqlserver")
     const [database, setDatabaseName] = useState("sampledb")
@@ -43,7 +44,8 @@ function DatabaseConnectionForm({ isOpen }: DatabaseConnectionFormProps) {
 
     const connectToDatabase = async () => {
         //TODO: https://dev.to/abulhasanlakhani/connecting-to-sql-server-from-electron-react-1kdi
-        const project: ProjectViewModel = {
+        const projectPayload: ProjectViewModel = {
+            userId: user.id,
             name: projectName,
             sqlServerViewModels: [{
                 isRemote: connectionType == 'remote',
@@ -52,14 +54,16 @@ function DatabaseConnectionForm({ isOpen }: DatabaseConnectionFormProps) {
                     server: server,
                     name: database,
                     tables: [{ name: table }],
-                    model: modelName
+                    model: ''
                 }]
             }]
         }
 
+        addProject(projectPayload);
+
         runSqlServerHandshake({ server: server, database, table, isRemote: connectionType == 'remote' }).then(async (res) => {
             if (!res) return;
-            await addProject(project)
+            await addProject(projectPayload)
         })
     };
 

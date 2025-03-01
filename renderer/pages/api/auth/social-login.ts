@@ -74,7 +74,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
           if (!user) {
             // Create a new user
-            user = await firebaseService.addUser(userData);
+            user = await firebaseService.createUser(userData);
           } else {
             // Update existing user with latest Google info
             user = await firebaseService.updateUser(user.id, userData);

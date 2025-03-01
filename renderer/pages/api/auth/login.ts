@@ -18,13 +18,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       // Call service method to handle business logic
       const user = await authService.login(email, password);
-      
+
       // Return successful response
-      return res.status(200).json(user);
+      return res.status(200).json({ message: 'Login successful', data: user });
     } catch (error) {
       // Handle service-level errors with appropriate status codes
       console.error('Authentication error:', error);
-      
+
       if (error.message === 'Invalid email format' || error.message === 'Invalid password format') {
         return res.status(400).json({ message: error.message });
       } else if (error.message === 'Authentication failed') {

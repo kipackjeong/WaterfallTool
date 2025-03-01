@@ -52,7 +52,7 @@ const LoginModal = ({
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { colorMode } = useColorMode();
-  const { isOpen: _isOpen, onOpen, onClose } = useDisclosure({ defaultIsOpen: isOpen });
+  const { isOpen: _isOpen, onOpen, onClose } = useDisclosure({ defaultIsOpen: true });
 
   const toast = useToast();
 

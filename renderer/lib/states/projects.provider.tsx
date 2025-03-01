@@ -1,7 +1,7 @@
 import { type ReactNode, createContext, useRef, useContext } from 'react'
 import { useStore } from 'zustand'
 
-import { type ProjectViewModel, type ProjectsState, type ProjectsStore, createProjectStore } from './projects.store'
+import { type ProjectsState, type ProjectsStore, createProjectStore } from './projects.store'
 
 export type ProjectStoreApi = ReturnType<typeof createProjectStore>
 

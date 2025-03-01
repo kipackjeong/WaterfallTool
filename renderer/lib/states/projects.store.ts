@@ -1,6 +1,8 @@
 import { createStore } from 'zustand/vanilla';
-import { SqlServerViewModel } from '../models';
+import { ProjectViewModel, SqlServerViewModel, User } from '../models';
 import { IndexedDBService } from '../services/indexedDBService';
+import { apiService } from '../services/apiService';
+import { set } from 'lodash';
 
 const INDEXED_DB_SERVICE = new IndexedDBService('states', 'projectsArrState');
 
@@ -8,45 +10,104 @@ export type ProjectsState = {
     projectsArrState: ProjectViewModel[];
 };
 
-export type ProjectViewModel = {
-    name: string;
-    sqlServerViewModels: SqlServerViewModel[];
-};
-
-export type ProjectsActions = {
-    initProjects: () => void;
-    addProject: (project: ProjectViewModel) => void;
-};
-
-export type ProjectsStore = ProjectsState & ProjectsActions;
-
 export const defaultInitState: ProjectsState = {
     projectsArrState: []
 };
 
+export type ProjectsActions = {
+    initProjects: (user: User) => void;
+    addProject: (project: ProjectViewModel) => void;
+    deleteProject: (projectId: string) => void;
+    deleteSqlServer: (projectId: string, serverName: string) => void;
+    deleteDatabase: (projectId: string, serverName: string, databaseName: string) => void;
+};
+
+export type ProjectsStore = ProjectsState & ProjectsActions;
+
 export const createProjectStore = (
     initState: ProjectsState = defaultInitState,
 ) => {
+    return createStore<ProjectsStore>()(
+        (set) => ({
+            ...initState,
+            initProjects: async (user: User) => {
+                try {
+                    const projectsArrState = await apiService.get('projects', { params: { userId: user.id } });
+                    set({ projectsArrState: projectsArrState ?? [] });
+                } catch (error) {
+                    console.error('Error initializing projects:', error);
+                }
+            },
+            addProject: (newProject: ProjectViewModel) => {
+                set((prevState: ProjectsState) => {
+                    const updatedState = mergeProjects(prevState, newProject);
+                    console.log('updatedState:', updatedState)
+                    apiService.post('projects', newProject).then((res) => {
+                        console.log('res', res);
+                        return { ...prevState, projectsArrState: res };
+                    });
+                    return updatedState;
+                });
+            },
+            deleteProject: (projectId: string) => {
+                set((prevState: ProjectsState) => {
+                    const updatedState = { ...prevState, projectsArrState: prevState.projectsArrState.filter(project => project.id !== projectId) };
+                    apiService.delete(`projects/${projectId}`).then((res) => {
+                        console.log(res);
+                    });
+                    return updatedState;
+                });
+            },
+            deleteSqlServer: (projectId: string, serverName: string) => {
+                set((prevState: ProjectsState) => {
+                    const updatedState = {
+                        ...prevState, projectsArrState: prevState.projectsArrState.map(project => {
+                            if (project.id === projectId) {
+                                return { ...project, sqlServerViewModels: project.sqlServerViewModels.filter(sqlServer => sqlServer.name !== serverName) };
+                            } else {
+                                return project;
+                            }
+                        })
+                    };
+                    return updatedState;
+                });
+            },
+            deleteDatabase: (projectId: string, serverName: string, databaseName: string) => {
 
-    return createStore<ProjectsStore>()((set) => ({
-        ...initState,
-        initProjects: async () => {
-            try {
-                const projectsArrState = await INDEXED_DB_SERVICE.get<ProjectViewModel[]>('state');
-                set({ projectsArrState: projectsArrState ?? [] });
-            } catch (error) {
-                console.error('Error initializing projects:', error);
+                set((prevState: ProjectsState) => {
+                    const updatedState = {
+                        ...prevState, projectsArrState: prevState.projectsArrState.map(project => {
+                            if (project.id === projectId) {
+                                const updatedProject = {
+                                    ...project,
+                                    sqlServerViewModels: project.sqlServerViewModels.map(sqlServer => {
+                                        if (sqlServer.name === serverName) {
+                                            return { ...sqlServer, databases: sqlServer.databases.filter(database => database.name !== databaseName) };
+                                        } else {
+                                            return sqlServer;
+                                        }
+                                    })
+                                };
+
+                                uploadSyncProject(projectId, updatedProject)
+                                return updatedProject;
+                            } else {
+                                return project;
+                            }
+                        })
+                    };
+
+                    return updatedState;
+                });
             }
-        },
-        addProject: (newProject: ProjectViewModel) => {
-            set((prevState: ProjectsState) => {
-                const updatedState = mergeProjects(prevState, newProject);
-                INDEXED_DB_SERVICE.put('state', updatedState.projectsArrState);
-                return updatedState;
-            });
         }
-    }));
+        )
+    );
 };
+const uploadSyncProject = (projectId: string, updatedProject: ProjectViewModel) => {
+    apiService.put(`projects/${projectId}`, updatedProject);
+}
+
 
 const mergeProjects = (prevState: ProjectsState, newProject: ProjectViewModel): ProjectsState => {
 

@@ -19,7 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         case 'POST':
             try {
                 // Create a new user
-                const newUser = await firebaseService.addUser(req.body);
+                const newUser = await firebaseService.createUser(req.body);
 
                 // Remove the internal _duplicate flag before sending the response
                 const { _duplicate, ...userResponse } = newUser;

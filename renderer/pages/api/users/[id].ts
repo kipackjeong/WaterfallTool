@@ -12,7 +12,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (!user) {
           return res.status(404).json({ message: `User with id ${id} not found` })
         }
-        res.status(200).json(user)
+
+        res.status(200).json({ message: 'User fetched successfully', data: user })
       } catch (error) {
         console.error(`Error fetching user ${id}:`, error)
         res.status(500).json({ message: 'Failed to fetch user', error: error.message })
@@ -21,10 +22,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     case 'POST':
       try {
-        const newUser = await firebaseService.addUser(req.body)
+        const newUser = await firebaseService.createUser(req.body)
 
         // Check if the user was a duplicate (using the _duplicate flag)
-        const isDuplicate = newUser._duplicate === true;
+        const isDuplicate = newUser._duplicate;
 
         // Remove the internal _duplicate flag before sending the response
         const { _duplicate, ...userResponse } = newUser;
@@ -33,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const statusCode = isDuplicate ? 200 : 201;
 
         res.status(statusCode).json({
-          ...userResponse,
+          data: userResponse,
           isDuplicate,
           message: isDuplicate
             ? 'User with this email already exists'
@@ -48,7 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     case 'PUT':
       try {
         const updatedUser = await firebaseService.updateUser(id as string, req.body)
-        res.status(200).json(updatedUser)
+        res.status(200).json({ message: 'User updated successfully', data: updatedUser })
       } catch (error) {
         console.error(`Error updating user ${id}:`, error)
         res.status(500).json({ message: 'Failed to update user', error: error.message })

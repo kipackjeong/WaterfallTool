@@ -1,3 +1,13 @@
+export type ProjectViewModel = {
+    id?: string;
+    userId: string;
+    name: string;
+    sqlServerViewModels: SqlServerViewModel[];
+};
+
+export type ProjectDataModel = {
+} & ProjectViewModel
+
 export type SqlServerViewModel = {
     isRemote: boolean
     name: string
