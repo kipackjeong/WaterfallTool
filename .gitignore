@@ -6,7 +6,6 @@ dist/
 app/
 renderer/.next
 
-
 # Node.js dependencies
 node_modules/
 npm-debug.log*
