@@ -1,0 +1,106 @@
+{
+  "private": true,
+  "name": "memrefinder",
+  "description": "GPT-powered File Explorer App to Chat with your documents and files to find answers to your questions",
+  "version": "0.0.2",
+  "author": "Praveen Palanisamy <praveen.palanisamy@outlook.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/praveen-palanisamy/MemReFinder"
+  },
+  "main": "main/index.js",
+  "scripts": {
+    "dev": "tsc -p renderer && next dev renderer",
+    "build": "next build renderer",
+    "start": "next start renderer",
+    "dev:desktop": "npm run build:desktop && electron .",
+    "build:desktop": "npm run clean && npm run build:electron",
+    "dist": "npm run build:desktop && electron-builder",
+    "postinstall": "electron-builder install-app-deps",
+    "clean": "rimraf dist renderer/.next main/*.js main/**/*.js",
+    "build:main": "tsc -p main",
+    "build:renderer": "next build renderer",
+    "build:electron": "npm run build:renderer && npm run build:main",
+    "lint": "next lint renderer"
+  },
+  "dependencies": {
+    "axios": "^1.2.3",
+    "crypto-js": "^4.2.0",
+    "electron-is-dev": "^1.1.0",
+    "electron-serve": "^1.3.0",
+    "electron-store": "^8.2.0",
+    "electron-updater": "^5.3.0",
+    "firebase": "^11.4.0",
+    "fs": "^0.0.1-security",
+    "idb": "^8.0.2",
+    "lodash": "^4.17.21",
+    "mssql": "^11.0.1",
+    "next": "13.1.2",
+    "next-auth": "^4.22.1",
+    "next-themes": "^0.4.4",
+    "npx": "^10.2.2",
+    "react-icons": "^5.5.0",
+    "react-markdown": "^8.0.5",
+    "react-select": "^5.10.0",
+    "shadcn": "^2.4.0-canary.11",
+    "tailwindcss": "^3.3.2",
+    "tedious": "^18.6.1",
+    "xlsx": "^0.18.5",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@chakra-ui/icons": "^2.1.1",
+    "@chakra-ui/react": "^2.8.2",
+    "@chakra-ui/theme-tools": "^2.1.2",
+    "@emotion/react": "^11.11.4",
+    "@emotion/styled": "^11.11.5",
+    "@next/font": "13.1.2",
+    "@types/lodash": "^4.14.191",
+    "@types/node": "^18.11.18",
+    "@types/react": "18.0.27",
+    "@types/react-dom": "18.0.10",
+    "electron": "^21.3.3",
+    "electron-builder": "^23.6.0",
+    "eslint": "8.32.0",
+    "eslint-config-next": "13.1.2",
+    "framer-motion": "^11.0.28",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.7.3"
+  },
+  "build": {
+    "appId": "com.waterfalltool",
+    "productName": "Waterfall Tool",
+    "files": [
+      "main/*.js",
+      "renderer"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip",
+        "portable"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm",
+        "tar.gz",
+        "zip"
+      ]
+    },
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    }
+  }
+}
