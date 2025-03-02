@@ -1,12 +1,12 @@
 {
   "private": true,
-  "name": "memrefinder",
-  "description": "GPT-powered File Explorer App to Chat with your documents and files to find answers to your questions",
-  "version": "0.0.2",
-  "author": "Praveen Palanisamy <praveen.palanisamy@outlook.com>",
+  "name": "waterfalltool",
+  "description": "",
+  "version": "0.0.1",
+  "author": "Kipack Jeong <kipackjeong@outlook.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/praveen-palanisamy/MemReFinder"
+    "url": "https://github.com/kipackjeong/WaterfallTool"
   },
   "main": "main/index.js",
   "scripts": {
