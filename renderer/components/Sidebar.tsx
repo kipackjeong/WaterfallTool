@@ -1,7 +1,8 @@
-import { Box, Flex, Icon, IconButton, Text, useColorMode, Button, Tooltip } from "@chakra-ui/react";
-import { color, motion } from "framer-motion";
+import { Box, Flex, Icon, IconButton, Text, useColorMode, Button, Tooltip, Divider } from "@chakra-ui/react";
+import { motion } from "framer-motion";
+import ExpandableList from "./common/ExpandableList";
 import { IoClose } from "react-icons/io5";
-import { ElementType, useEffect, useState } from "react";
+import { ElementType, useCallback, useEffect, useState } from "react";
 import { GoDatabase, GoServer } from "react-icons/go";
 import { HiOutlineArrowTurnDownRight } from "react-icons/hi2";
 import { useProjectStore } from "../lib/states/projects.provider";
@@ -23,6 +24,43 @@ const Sidebar = () => {
     const sideBarBGColor = colorMode === 'light' ? 'gray.800' : 'gray.700';
     const iconColor = 'white';
     const [expandedDatabases, setExpandedDatabases] = useState({});
+    const [sidebarWidth, setSidebarWidth] = useState(250); // Default width when open
+    const [isResizing, setIsResizing] = useState(false);
+    
+    // Handle resize start
+    const startResizing = useCallback((e) => {
+        e.preventDefault();
+        setIsResizing(true);
+    }, []);
+    
+    // Handle resize end
+    const stopResizing = useCallback(() => {
+        setIsResizing(false);
+    }, []);
+    
+    // Handle resize
+    const resize = useCallback(
+        (e) => {
+            if (isResizing && isOpen) {
+                const newWidth = e.clientX;
+                // Set min and max constraints
+                if (newWidth >= 150 && newWidth <= 500) {
+                    setSidebarWidth(newWidth);
+                }
+            }
+        },
+        [isResizing, isOpen]
+    );
+    
+    // Add event listeners for mouse movements
+    useEffect(() => {
+        window.addEventListener('mousemove', resize);
+        window.addEventListener('mouseup', stopResizing);
+        return () => {
+            window.removeEventListener('mousemove', resize);
+            window.removeEventListener('mouseup', stopResizing);
+        };
+    }, [resize, stopResizing]);
     // TEST SPOT 
     useEffect(() => {
         // apiService.get(`users/${123}`).then(data => {
@@ -77,9 +115,10 @@ const Sidebar = () => {
                 color="white"
                 boxShadow="md"
                 initial={{ width: "32px" }} // Initial width when closed
-                animate={{ width: isOpen ? 250 : "32px" }} // Animate width based on isOpen
-                transition={{ duration: 0.5 }} // Duration of the animation
+                animate={{ width: isOpen ? sidebarWidth : "32px" }} // Animate width based on isOpen and sidebarWidth
+                transition={{ duration: isResizing ? 0 : 0.5 }} // No transition when resizing
                 overflow="hidden" // Hide overflow to prevent content from showing when collapsed
+                style={{ cursor: isResizing ? 'ew-resize' : 'default' }}
             >
                 <Box w="100%" h="50px">
                     {/* Plus Button */}
@@ -124,24 +163,43 @@ const Sidebar = () => {
 
                 {isOpen && (
                     <>
-                        <Box borderBottom="1px solid" borderColor={iconColor} width="100%" mb={2} />
+                        <Divider orientation="horizontal" color={iconColor} />
                         <Flex direction="column">
                             {projectsArrState.map((project, index) => (
-                                <Flex gap={3} padding="8px 8px" key={index}>
-                                    {project?.sqlServerViewModels.map((sqlServerInfo, index) => (
-                                        <ServerItem
-                                            key={index}
-                                            project={project}
-                                            sqlServerInfo={sqlServerInfo}
-                                            toggleDatabase={toggleDatabase}
-                                            expandedDatabases={expandedDatabases}
-                                            setInstanceViewState={setInstanceViewState}
-                                        />
-                                    ))}
+                                <Flex direction="column" padding="8px 8px">
+                                    <Text>{project?.name}</Text>
+                                    <Flex gap={3} key={index}>
+                                        {project?.sqlServerViewModels.map((sqlServerInfo, index) => (
+                                            <ServerItem
+                                                key={index}
+                                                project={project}
+                                                sqlServerInfo={sqlServerInfo}
+                                                toggleDatabase={toggleDatabase}
+                                                expandedDatabases={expandedDatabases}
+                                                setInstanceViewState={setInstanceViewState}
+                                            />
+                                        ))}
+                                    </Flex>
                                 </Flex>
+
                             ))}
                         </Flex>
                     </>
+                )}
+                {/* Resize Handle */}
+                {isOpen && (
+                    <Box
+                        position="absolute"
+                        top={0}
+                        right={0}
+                        width="4px"
+                        height="100%"
+                        bg="transparent"
+                        cursor="ew-resize"
+                        zIndex={10}
+                        _hover={{ bg: "blue.400" }}
+                        onMouseDown={startResizing}
+                    />
                 )}
                 <Box as="div" bottom={4} left={0} right={0} position="absolute">
                     {isOpen && user && (
@@ -182,152 +240,117 @@ const Sidebar = () => {
 export default Sidebar;
 
 const ServerItem = ({ project, sqlServerInfo, toggleDatabase, expandedDatabases, setInstanceViewState }) => {
-    const [expanded, setExpanded] = useState(true);
-
-    const toggleServer = () => {
-        setExpanded(!expanded);
-    };
-
     return (
-        <Flex direction="column" width={'100%'}>
-            <Flex
-                sx={{
-                    position: 'relative',
-                    justifyContent: "start",
-                    alignItems: "center",
-                    gap: 2,
-                    cursor: "pointer",
-                    _hover: {
-                        color: "blue.400"
-                    }
-                }}
-                onClick={toggleServer}
-            >
-                <Icon as={GoServer as ElementType} />
-                <Text>{sqlServerInfo.name}</Text>
-            </Flex>
-            {expanded && (
-                sqlServerInfo.databases.map((databaseInfo, index) => (
-                    <DatabaseItem
-                        key={index}
-                        databaseInfo={databaseInfo}
-                        project={project}
-                        sqlServerInfo={sqlServerInfo}
-                        toggleDatabase={toggleDatabase}
-                        expandedDatabases={expandedDatabases}
-                        setInstanceViewState={setInstanceViewState}
-                    />
-                ))
-            )}
-        </Flex>
+        <ExpandableList
+            title={sqlServerInfo.name}
+            titleIcon={GoServer as ElementType}
+            items={sqlServerInfo.databases.map((databaseInfo, index) => (
+                <DatabaseItem
+                    key={index}
+                    databaseInfo={databaseInfo}
+                    project={project}
+                    sqlServerInfo={sqlServerInfo}
+                    toggleDatabase={toggleDatabase}
+                    expandedDatabases={expandedDatabases}
+                    setInstanceViewState={setInstanceViewState}
+                />
+            ))}
+            initialExpanded={true}
+            hoverColor="blue.400"
+        />
     );
 };
 
 const DatabaseItem = ({ project, databaseInfo, sqlServerInfo, toggleDatabase, expandedDatabases, setInstanceViewState }) => {
-    const { deleteDatabase } = useProjectStore(state => state)
-    return (
-        <>
-            <Flex
-                sx={{
-                    width: '100%',
-                    justifyContent: "start",
-                    padding: "0 4px 0px 8px",
-                }}
-            >
-                <Flex
-                    sx={{
-                        width: '100%',
-                        gap: 2,
-                        cursor: "pointer",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        _hover: {
-                            color: "blue.400",
-                            ".delete-icon": {
-                                display: "flex"
-                            }
-                        }
-                    }}
-                >
-                    <Flex
-                        sx={{
-                            width: '100%',
-                            gap: 2,
-                            alignItems: "center",
-                        }}
-                        onClick={() => toggleDatabase(databaseInfo.name)}
-                    >
-                        <Icon as={HiOutlineArrowTurnDownRight as ElementType} />
-                        <Icon as={GoDatabase as ElementType} />
-                        <Text>{databaseInfo.name}</Text>
-                    </Flex>
-
-                    <IconButton
-                        aria-label="Delete database"
-                        icon={<Icon as={IoClose as ElementType} fontSize="sm" />}
-                        size="sm"
-                        variant="ghost"
-                        colorScheme="orange"
-                        className="delete-icon"
-                        sx={{
-                            position: 'absolute',
-                            right: '0px',
-                            background: 'transparent',
-                            display: "none",
-                            minWidth: "auto",
-                            height: "auto",
-                            padding: "4px",
-                            _hover: {
-                                background: 'transparent',
-                            }
-                        }}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (window.confirm(`Are you sure you want to delete database ${databaseInfo.name}?`)) {
-                                // Get the project id, server name, and database name
-                                // and call deleteDatabase
-                                const projectId = project.id;
-                                const serverName = sqlServerInfo.name;
-                                console.log('projectId:', projectId)
-                                deleteDatabase(projectId, serverName, databaseInfo.name);
-                            }
-                        }}
-                    />
-                </Flex>
-
-            </Flex >
-            {
-                expandedDatabases[databaseInfo.name] && (
-                    databaseInfo.tables.map((tableInfo, index) => (
-                        <Flex
-                            key={index}
-                            sx={{
-                                flex: 1,
-                                justifyContent: "start",
-                                alignItems: "center",
-                                padding: "0 32px",
-                                gap: 2,
-                                cursor: "pointer",
-                                _hover: {
-                                    color: "blue.400"
-                                }
-                            }}
-                            onClick={() => {
-                                setInstanceViewState({
-                                    isRemote: sqlServerInfo.isRemote,
-                                    server: sqlServerInfo.name,
-                                    database: databaseInfo.name,
-                                    table: tableInfo.name
-                                })
-                            }}
-                        >
-                            <Icon as={HiOutlineArrowTurnDownRight as ElementType} />
-                            <Icon as={FaTable as ElementType} />
-                            <Text>{tableInfo.name}</Text>
-                        </Flex>
-                    ))
-                )
-            }
-        </>
+    const { deleteDatabase, deleteTable } = useProjectStore(state => state)
+    
+    // Create a custom title with the database icon
+    const databaseTitle = (
+        <Flex gap={2} alignItems="center">
+            <Icon as={HiOutlineArrowTurnDownRight as ElementType} />
+            <Icon as={GoDatabase as ElementType} />
+            <Text>{databaseInfo.name}</Text>
+        </Flex>
     );
+    
+    // Create table items for the expandable list
+    const tableItems = databaseInfo.tables.map((tableInfo, index) => (
+        <Flex
+            key={index}
+            sx={{
+                width: '100%',
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 2,
+                cursor: "pointer",
+                position: "relative",
+                _hover: {
+                    color: "blue.400",
+                    ".delete-icon": {
+                        display: "flex"
+                    }
+                }
+            }}
+            onClick={() => {
+                setInstanceViewState({
+                    isRemote: sqlServerInfo.isRemote,
+                    server: sqlServerInfo.name,
+                    database: databaseInfo.name,
+                    table: tableInfo.name
+                })
+            }}
+        >
+            <Flex gap={2} alignItems="center">
+                <Icon as={HiOutlineArrowTurnDownRight as ElementType} />
+                <Icon as={FaTable as ElementType} />
+                <Text>{tableInfo.name}</Text>
+            </Flex>
+            
+            <IconButton
+                aria-label="Delete table"
+                icon={<Icon as={IoClose as ElementType} fontSize="sm" />}
+                size="sm"
+                variant="ghost"
+                colorScheme="orange"
+                className="delete-icon"
+                sx={{
+                    position: 'absolute',
+                    right: '0px',
+                    background: 'transparent',
+                    display: "none",
+                    minWidth: "auto",
+                    height: "auto",
+                    padding: "4px",
+                    _hover: {
+                        background: 'transparent',
+                    }
+                }}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    if (window.confirm(`Are you sure you want to delete table ${tableInfo.name}?`)) {
+                        deleteTable(project.id, sqlServerInfo.name, databaseInfo.name, tableInfo.name);
+                    }
+                }}
+            />
+        </Flex>
+    ));
+    
+    return (
+        <ExpandableList
+            title={databaseTitle}
+            items={tableItems}
+            initialExpanded={expandedDatabases[databaseInfo.name] || false}
+            onToggle={(expanded) => toggleDatabase(databaseInfo.name)}
+            showChevron={false}
+            hoverColor="blue.400"
+            containerProps={{
+                paddingLeft: "4px"
+            }}
+            onDelete={() => {
+                deleteDatabase(project.id, sqlServerInfo.name, databaseInfo.name);
+            }}
+            deleteConfirmMessage={`Are you sure you want to delete database ${databaseInfo.name}?`}
+        />
+    );
+
 };

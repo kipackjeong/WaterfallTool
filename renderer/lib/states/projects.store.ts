@@ -20,6 +20,7 @@ export type ProjectsActions = {
     deleteProject: (projectId: string) => void;
     deleteSqlServer: (projectId: string, serverName: string) => void;
     deleteDatabase: (projectId: string, serverName: string, databaseName: string) => void;
+    deleteTable: (projectId: string, serverName: string, databaseName: string, tableName: string) => void;
 };
 
 export type ProjectsStore = ProjectsState & ProjectsActions;
@@ -99,6 +100,40 @@ export const createProjectStore = (
 
                     return updatedState;
                 });
+            },
+            deleteTable: (projectId: string, serverName: string, databaseName: string, tableName: string) => {
+                set((prevState: ProjectsState) => {
+                    const updatedState = {
+                        ...prevState, projectsArrState: prevState.projectsArrState.map(project => {
+                            if (project.id === projectId) {
+                                const updatedProject = {
+                                    ...project,
+                                    sqlServerViewModels: project.sqlServerViewModels.map(sqlServer => {
+                                        if (sqlServer.name === serverName) {
+                                            return {
+                                                ...sqlServer, databases: sqlServer.databases.map(database => {
+                                                    if (database.name === databaseName) {
+                                                        return { ...database, tables: database.tables.filter(table => table.name !== tableName) };
+                                                    } else {
+                                                        return database;
+                                                    }
+                                                })
+                                            };
+                                        } else {
+                                            return sqlServer;
+                                        }
+                                    })
+                                };
+
+                                uploadSyncProject(projectId, updatedProject)
+                                return updatedProject;
+                            } else {
+                                return project;
+                            }
+                        })
+                    };
+                    return updatedState;
+                })
             }
         }
         )
