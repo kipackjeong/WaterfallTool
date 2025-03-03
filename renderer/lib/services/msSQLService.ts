@@ -1,23 +1,16 @@
 import sql, { ConnectionPool, IResult, ISqlType, config as SqlConfig } from 'mssql';
-import { InstanceViewModel, MappingViewModel } from "../models";
+import { ProjectViewModel, MappingsViewModel, InstanceViewModel } from "../models";
+import { APIError } from '../errors/APIError';
+import { table } from 'console';
+import { query } from 'firebase/firestore';
 
-// Define the connection configuration interface
-export interface SqlConnectionConfig {
-  server: string;
-  database?: string;
-  user: string;
-  password: string;
-  port?: number;
-  trustServerCertificate?: boolean;
-  encrypt?: boolean;
-  isRemote?: boolean;
-}
+export type SqlConfig = SqlConfig;
 
 // Connection pool cache to reuse connections
 const connectionPools: { [key: string]: ConnectionPool } = {};
 
 // Helper function to create a unique key for each connection
-const getConnectionKey = (config: SqlConnectionConfig): string => {
+const getConnectionKey = (config: SqlConfig): string => {
   return `${config.server}_${config.database || 'master'}_${config.user}`;
 };
 
@@ -26,7 +19,7 @@ export const msSQLService = {
   /**
    * Establish a connection to SQL Server
    */
-  async connect(config: SqlConnectionConfig): Promise<ConnectionPool> {
+  async connect(config: SqlConfig): Promise<ConnectionPool> {
     try {
       const connectionKey = getConnectionKey(config);
 
@@ -44,7 +37,7 @@ export const msSQLService = {
       // Create SQL configuration
       const sqlConfig: SqlConfig = {
         server: config.server,
-        database: config.database || 'master', // Default to master if not provided
+        database: config.database, // Default to master if not provided
         user: config.user,
         password: config.password,
         port: config.port || 1433, // Default SQL Server port
@@ -63,7 +56,6 @@ export const msSQLService = {
 
       return pool;
     } catch (error) {
-      console.error('SQL Connection Error:', error);
       throw new Error(`Failed to connect to SQL Server: ${error.message}`);
     }
   },
@@ -72,7 +64,7 @@ export const msSQLService = {
    * Execute a SQL query
    */
   async query<T = any>(
-    connectionConfig: SqlConnectionConfig,
+    connectionConfig: SqlConfig,
     queryText: string,
     parameters?: Record<string, any>
   ): Promise<T[]> {
@@ -98,10 +90,11 @@ export const msSQLService = {
     }
   },
 
+
   /**
    * Get all databases on the server
    */
-  async getDatabases(connectionConfig: SqlConnectionConfig): Promise<{ name: string }[]> {
+  async getDatabases(connectionConfig: SqlConfig): Promise<{ name: string }[]> {
     const query = `
       SELECT name 
       FROM sys.databases 
@@ -115,7 +108,7 @@ export const msSQLService = {
   /**
    * Get all tables in a database
    */
-  async getTables(connectionConfig: SqlConnectionConfig): Promise<{ name: string }[]> {
+  async getTables(connectionConfig: SqlConfig): Promise<{ name: string }[]> {
     // Ensure database is specified
     if (!connectionConfig.database) {
       throw new Error('Database must be specified to get tables');
@@ -135,7 +128,7 @@ export const msSQLService = {
    * Get columns for a specific table
    */
   async getTableColumns(
-    connectionConfig: SqlConnectionConfig,
+    connectionConfig: SqlConfig,
     tableName: string
   ): Promise<{ name: string; dataType: string; isNullable: boolean }[]> {
     // Ensure database is specified
@@ -160,30 +153,34 @@ export const msSQLService = {
    * Execute a custom SQL query with optional parameters
    */
   async executeQuery<T = any>(
-    connectionConfig: SqlConnectionConfig,
+    connectionConfig: SqlConfig,
     queryText: string,
     parameters?: Record<string, any>
   ): Promise<T[]> {
+    console.log('[msSQLService] executeQuery:', connectionConfig, queryText, parameters);
     return this.query(connectionConfig, queryText, parameters);
   },
 
   /**
    * Test a connection to verify credentials and connectivity
+   * @param connectionConfig - SQL Server connection configuration
+   * @param tableName - Table name to use for the test query
+   * @throws {APIError} with status 500 if connection fails
    */
-  async testConnection(connectionConfig: SqlConnectionConfig): Promise<{ success: boolean; message: string }> {
+  async testConnection(connectionConfig: SqlConfig, tableName: string) {
+    console.log('[msSQLService] testConnection:', connectionConfig, tableName);
+    let pool = null;
     try {
-      const pool = await this.connect(connectionConfig);
-      await pool.request().query('SELECT 1');
+      // Establish connection
+      pool = await this.connect(connectionConfig);
 
-      return {
-        success: true,
-        message: 'Connection successful'
-      };
+      // Execute a simple query to verify connectivity
+      // Note: In a real application, parameterized queries should be used for security
+      await pool.request().query(`SELECT 1 From ${tableName}`);
+      // Connection test successful
+      return;
     } catch (error) {
-      return {
-        success: false,
-        message: `Connection failed: ${error.message}`
-      };
+      throw new APIError(`Connection failed: ${error.message}`, 500);
     }
   },
 
@@ -206,7 +203,7 @@ export const msSQLService = {
    * Get table data with pagination support
    */
   async getTableData<T = any>(
-    connectionConfig: SqlConnectionConfig,
+    connectionConfig: SqlConfig,
     tableName: string,
     page: number = 1,
     pageSize: number = 100,
@@ -256,147 +253,147 @@ export const msSQLService = {
       data,
       totalCount: countResult[0]?.totalCount || 0
     };
-  }
+  },
 };
 
-/**
- * Query mappings array for visualization
- */
-export async function queryMappingsArr(instanceViewState: InstanceViewModel): Promise<MappingViewModel[]> {
-  const names = await queryMappingNames(instanceViewState);
-  const mappingViewModels: MappingViewModel[] = [];
+// async function queryMappingNames(sqlConfig: SqlConfig, table: string): Promise<string[]> {
+//   const keywords = ['Procedure', 'Provider', 'Insurance', 'Location'];
+//   const query = `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '${table}' AND (${keywords.map(keyword => `COLUMN_NAME LIKE '%${keyword}%'`).join(' OR ')})`;
 
-  await Promise.all(names.map(async name => {
-    const res = await _runQueryForMappingName(instanceViewState, name);
-    if (res && res.length > 0) {
-      const columnName = Object.keys(res[0])[0];
-      const keyword = columnName.split('_Group')[0];
+//   try {
+//     // Convert sqlConfig
+//     const connectionConfig: SqlConfig = {
+//       server: sqlConfig.server,
+//       database: sqlConfig.database,
+//       user: sqlConfig.user || '',
+//       password: sqlConfig.password || '',
+//       isRemote: sqlConfig.isRemote
+//     };
 
-      const data = res.map(data => ({
-        ...data,
-        [`Waterfall_Group`]: data[`${keyword}_Group_Final`]
-      }));
+//     const res = await this.query(connectionConfig, query);
+//     const existingKeywords = keywords.filter(keyword => res?.some(row => row.COLUMN_NAME.includes(keyword)));
+//     return existingKeywords;
+//   } catch (error) {
+//     console.error(`Error getting mapping names: ${error}`);
+//     return [];
+//   }
+// }
+// /**
+//  * Query mappings array for visualization
+//  */
+// export async function queryMappingsArr(projectViewState: ProjectViewModel): Promise<MappingsViewModel[]> {
+//   const names = await queryMappingNames(projectViewState);
+//   const mappingsViewModels: MappingsViewModel[] = [];
 
-      mappingViewModels.push({
-        tabName: name,
-        keyword,
-        data
-      });
-    }
-  }));
+//   await Promise.all(names.map(async name => {
+//     const res = await _runQueryForMappingName(projectViewState, name);
+//     if (res && res.length > 0) {
+//       const columnName = Object.keys(res[0])[0];
+//       const keyword = columnName.split('_Group')[0];
 
-  // Sort mappingViewModels by tabName
-  return mappingViewModels.sort((a, b) => a.tabName.localeCompare(b.tabName));
-}
+//       const data = res.map(data => ({
+//         ...data,
+//         [`Waterfall_Group`]: data[`${keyword}_Group_Final`]
+//       }));
 
-/**
- * Run a query for specific mapping name
- */
-async function _runQueryForMappingName(instanceViewState: InstanceViewModel, keyword: string): Promise<any> {
-  const query = `
-    DECLARE @sql NVARCHAR(MAX);
-    DECLARE @groupFinalColumn NVARCHAR(128);
-    DECLARE @groupColumn NVARCHAR(128);
+//       mappingsViewModels.push({
+//         tabName: name,
+//         keyword,
+//         data
+//       });
+//     }
+//   }));
 
-    -- Query to select columns based on pattern
-    SELECT TOP 1 @groupFinalColumn = COLUMN_NAME
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_NAME = '${instanceViewState.table}'
-    AND COLUMN_NAME LIKE '%${keyword}_Group_Final%';
+//   // Sort mappingsViewModels by tabName
+//   return mappingsViewModels.sort((a, b) => a.tabName.localeCompare(b.tabName));
+// }
 
-    SELECT TOP 1 @groupColumn = COLUMN_NAME
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_NAME = '${instanceViewState.table}'
-    AND COLUMN_NAME LIKE '%${keyword}_Group%';
+// /**
+//  * Run a query for specific mapping name
+//  */
+// async function _runQueryForMappingName(projectViewState: ProjectViewModel, keyword: string): Promise<any> {
+//   const query = `
+//     DECLARE @sql NVARCHAR(MAX);
+//     DECLARE @groupFinalColumn NVARCHAR(128);
+//     DECLARE @groupColumn NVARCHAR(128);
 
-    -- Build the dynamic SQL query
-    SET @sql = N'
-        SELECT ' + QUOTENAME(@groupFinalColumn) + ', ' + QUOTENAME(@groupColumn) + ',
-            SUM(Charge_Amount) AS Total_Charge_Amount,
-            SUM(Payment_Amount) AS Total_Payment_Amount,
-            MIN(DOS_Period) AS Earliest_Min_DOS,
-            MAX(DOS_Period) AS Latest_Max_DOS
-        FROM ${instanceViewState.table}
-        GROUP BY ' + QUOTENAME(@groupFinalColumn) + ', ' + QUOTENAME(@groupColumn);
+//     -- Query to select columns based on pattern
+//     SELECT TOP 1 @groupFinalColumn = COLUMN_NAME
+//     FROM INFORMATION_SCHEMA.COLUMNS
+//     WHERE TABLE_NAME = '${projectViewState.table}'
+//     AND COLUMN_NAME LIKE '%${keyword}_Group_Final%';
 
-    -- Execute the dynamic SQL
-    EXEC sp_executesql @sql;
-  `;
+//     SELECT TOP 1 @groupColumn = COLUMN_NAME
+//     FROM INFORMATION_SCHEMA.COLUMNS
+//     WHERE TABLE_NAME = '${projectViewState.table}'
+//     AND COLUMN_NAME LIKE '%${keyword}_Group%';
 
-  try {
-    // Convert instanceViewState to SqlConnectionConfig
-    const connectionConfig: SqlConnectionConfig = {
-      server: instanceViewState.server,
-      database: instanceViewState.database,
-      user: instanceViewState.user || '',
-      password: instanceViewState.password || '',
-      isRemote: instanceViewState.isRemote
-    };
+//     -- Build the dynamic SQL query
+//     SET @sql = N'
+//         SELECT ' + QUOTENAME(@groupFinalColumn) + ', ' + QUOTENAME(@groupColumn) + ',
+//             SUM(Charge_Amount) AS Total_Charge_Amount,
+//             SUM(Payment_Amount) AS Total_Payment_Amount,
+//             MIN(DOS_Period) AS Earliest_Min_DOS,
+//             MAX(DOS_Period) AS Latest_Max_DOS
+//         FROM ${projectViewState.table}
+//         GROUP BY ' + QUOTENAME(@groupFinalColumn) + ', ' + QUOTENAME(@groupColumn);
 
-    const res = await msSQLService.query(connectionConfig, query);
-    return res;
-  } catch (error) {
-    console.error(`Getting ${keyword} group mapping failed:`, error);
-    return [];
-  }
-}
+//     -- Execute the dynamic SQL
+//     EXEC sp_executesql @sql;
+//   `;
+
+//   try {
+//     // Convert projectViewState to SqlConfig
+//     const connectionConfig: SqlConfig = {
+//       server: projectViewState.server,
+//       database: projectViewState.database,
+//       user: projectViewState.user || '',
+//       password: projectViewState.password || '',
+//       isRemote: projectViewState.isRemote
+//     };
+
+//     const res = await msSQLService.query(connectionConfig, query);
+//     return res;
+//   } catch (error) {
+//     console.error(`Getting ${keyword} group mapping failed:`, error);
+//     return [];
+//   }
+// }
 
 /**
  * Query available mapping names
  */
-export async function queryMappingNames(instanceViewState: InstanceViewModel): Promise<string[]> {
-  const keywords = ['Procedure', 'Provider', 'Insurance', 'Location'];
-  const query = `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '${instanceViewState.table}' AND (${keywords.map(keyword => `COLUMN_NAME LIKE '%${keyword}%'`).join(' OR ')})`;
 
-  try {
-    // Convert instanceViewState to SqlConnectionConfig
-    const connectionConfig: SqlConnectionConfig = {
-      server: instanceViewState.server,
-      database: instanceViewState.database,
-      user: instanceViewState.user || '',
-      password: instanceViewState.password || '',
-      isRemote: instanceViewState.isRemote
-    };
+// /**
+//  * Query for numeric table data
+//  */
+// export async function queryForNumericTableData(projectViewState: ProjectViewModel): Promise<Record<string, number>> {
+//   const query = `
+//     SELECT
+//       SUM(Charge_Amount) AS Total_Charge_Amount,
+//       SUM(Payment_Amount) AS Total_Payment_Amount,
+//       SUM(Unit) AS Total_Unit,
+//       COUNT(Final_Charge_Count) AS Final_Charge_Count,
+//       COUNT(Final_Charge_Count_w_Payment) AS Final_Charge_w_Payment,
+//       COUNT(Final_Visit_Count) AS Final_Visit_Count,
+//       COUNT(Final_Visit_Count_w_Payment) AS Final_Visit_w_Payment
+//     FROM ${projectViewState.table};
+//   `;
 
-    const res = await msSQLService.query(connectionConfig, query);
-    const existingKeywords = keywords.filter(keyword => res?.some(row => row.COLUMN_NAME.includes(keyword)));
-    return existingKeywords;
-  } catch (error) {
-    console.error(`Error getting mapping names: ${error}`);
-    return [];
-  }
-}
+//   try {
+//     // Convert projectViewState to SqlConfig
+//     const connectionConfig: SqlConfig = {
+//       server: projectViewState.server,
+//       database: projectViewState.database,
+//       user: projectViewState.user || '',
+//       password: projectViewState.password || '',
+//       isRemote: projectViewState.isRemote
+//     };
 
-/**
- * Query for numeric table data
- */
-export async function queryForNumericTableData(instanceViewState: InstanceViewModel): Promise<Record<string, number>> {
-  const query = `
-    SELECT
-      SUM(Charge_Amount) AS Total_Charge_Amount,
-      SUM(Payment_Amount) AS Total_Payment_Amount,
-      SUM(Unit) AS Total_Unit,
-      COUNT(Final_Charge_Count) AS Final_Charge_Count,
-      COUNT(Final_Charge_Count_w_Payment) AS Final_Charge_w_Payment,
-      COUNT(Final_Visit_Count) AS Final_Visit_Count,
-      COUNT(Final_Visit_Count_w_Payment) AS Final_Visit_w_Payment
-    FROM ${instanceViewState.table};
-  `;
-
-  try {
-    // Convert instanceViewState to SqlConnectionConfig
-    const connectionConfig: SqlConnectionConfig = {
-      server: instanceViewState.server,
-      database: instanceViewState.database,
-      user: instanceViewState.user || '',
-      password: instanceViewState.password || '',
-      isRemote: instanceViewState.isRemote
-    };
-
-    const res = await msSQLService.query(connectionConfig, query);
-    return res[0];
-  } catch (error) {
-    console.error(`Error querying totals and counts: ${error}`);
-    return {};
-  }
-}
+//     const res = await msSQLService.query(connectionConfig, query);
+//     return res[0];
+//   } catch (error) {
+//     console.error(`Error querying totals and counts: ${error}`);
+//     return {};
+//   }
+// }

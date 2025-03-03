@@ -1,5 +1,5 @@
 import { User } from '../models';
-import { firebaseService } from './firebaeService';
+import { firebaseService } from './firebaseService';
 import CryptoJS from 'crypto-js';
 import { generateToken } from './tokenService';
 

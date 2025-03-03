@@ -1,13 +1,13 @@
-import { Box, Flex, Icon, IconButton, Text, useColorMode, Button, Tooltip, Divider } from "@chakra-ui/react";
+import { Box, Flex, Icon, IconButton, Text, useColorMode, Tooltip, Divider, Spinner, VStack, Button, useToast } from "@chakra-ui/react";
 import { motion } from "framer-motion";
-import ExpandableList from "./common/ExpandableList";
-import { IoClose } from "react-icons/io5";
-import { ElementType, useCallback, useEffect, useState } from "react";
+import ExpandableList from "../lib/ui/ExpandableList";
+import { IoClose, IoRefresh } from "react-icons/io5";
+import { ElementType, useCallback, useEffect, useState, useRef } from "react";
 import { GoDatabase, GoServer } from "react-icons/go";
 import { HiOutlineArrowTurnDownRight } from "react-icons/hi2";
-import { useProjectStore } from "../lib/states/projects.provider";
+import { useProjectStore } from "../lib/states/projectsState";
 import DatabaseConnectionForm from "./DatabaseConnectionForm";
-import { useInstanceStore } from "../lib/states/instance.provider";
+import { useInstanceStore } from "../lib/states/instanceState";
 import { DarkModeSwitch } from "./DarkModeSwitch";
 import { FaPlus, FaChevronLeft, FaChevronRight, FaTable, FaSignOutAlt } from "react-icons/fa";
 import { useAuth } from "../lib/contexts/authContext";
@@ -26,18 +26,27 @@ const Sidebar = () => {
     const [expandedDatabases, setExpandedDatabases] = useState({});
     const [sidebarWidth, setSidebarWidth] = useState(250); // Default width when open
     const [isResizing, setIsResizing] = useState(false);
-    
+
+    // Loading and polling states
+    const [isLoading, setIsLoading] = useState(true);
+    const [isPolling, setIsPolling] = useState(false);
+    const [error, setError] = useState(null);
+    const pollingIntervalRef = useRef(null);
+    const pollingTimeoutRef = useRef(null);
+    const toast = useToast();
+    const POLLING_INTERVAL = 30000; // Poll every 30 seconds
+
     // Handle resize start
     const startResizing = useCallback((e) => {
         e.preventDefault();
         setIsResizing(true);
     }, []);
-    
+
     // Handle resize end
     const stopResizing = useCallback(() => {
         setIsResizing(false);
     }, []);
-    
+
     // Handle resize
     const resize = useCallback(
         (e) => {
@@ -51,7 +60,7 @@ const Sidebar = () => {
         },
         [isResizing, isOpen]
     );
-    
+
     // Add event listeners for mouse movements
     useEffect(() => {
         window.addEventListener('mousemove', resize);
@@ -63,29 +72,99 @@ const Sidebar = () => {
     }, [resize, stopResizing]);
     // TEST SPOT 
     useEffect(() => {
-        // apiService.get(`users/${123}`).then(data => {
-        //     console.log(data);
+        // apiClient.get(`users/${123}`).then(response => {
+        //     console.log(response.data.data);
         // })
-        // apiService.post(`users`, { email: 'kipackjeong@mail.com', name: 'Kipack Jeong' }).then(data => {
-        //     console.log(data);
+        // apiClient.post(`users`, { email: 'kipackjeong@mail.com', name: 'Kipack Jeong' }).then(response => {
+        //     console.log(response.data.data);
         // })
-        // apiService.put(`users/${123}`, { name: 'John Doe' }).then(data => {
-        //     console.log(data);
+        // apiClient.put(`users/${123}`, { name: 'John Doe' }).then(response => {
+        //     console.log(response.data.data);
         // })
-        // apiService.delete(`users/${123}`).then(data => {
-        //     console.log(data);
+        // apiClient.delete(`users/${123}`).then(response => {
+        //     console.log(response.data.data);
         // })
     }, [])
+    // Function to fetch projects with loading states
+    const fetchProjects = useCallback(async (isPollingRequest = false) => {
+        if (!user) return;
+
+        if (!isPollingRequest) {
+            setIsLoading(true);
+        } else {
+            setIsPolling(true);
+        }
+
+        setError(null);
+
+        try {
+            await initProjects(user);
+        } catch (err) {
+            console.error('Error fetching projects:', err);
+            setError(err.message || 'Failed to load projects');
+            if (!isPollingRequest) { // Only show toast for manual refreshes
+                toast({
+                    title: 'Error loading projects',
+                    description: err.message || 'Failed to load projects',
+                    status: 'error',
+                    duration: 5000,
+                    isClosable: true,
+                });
+            }
+        } finally {
+            if (!isPollingRequest) {
+                setIsLoading(false);
+            } else {
+                setIsPolling(false);
+            }
+        }
+    }, [user, initProjects, toast]);
+
+    // Function to start polling
+    const startPolling = useCallback(() => {
+        // Clear any existing intervals
+        if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+        }
+
+        // Set up new polling interval
+        pollingIntervalRef.current = setInterval(() => {
+            fetchProjects(true); // true indicates this is a background polling request
+        }, POLLING_INTERVAL);
+    }, [fetchProjects, POLLING_INTERVAL]);
+
+    // Manual refresh function
+    const handleRefresh = useCallback(() => {
+        fetchProjects(false); // false indicates this is a manual refresh
+    }, [fetchProjects]);
+
+    // Initial fetch and polling setup
     useEffect(() => {
         if (!user) return;
-        initProjects(user);
-    }, [user]);
+
+        // Initial fetch
+        fetchProjects(false);
+
+        // Start polling
+        startPolling();
+
+        // Cleanup function
+        return () => {
+            if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+            }
+            if (pollingTimeoutRef.current) {
+                clearTimeout(pollingTimeoutRef.current);
+            }
+        };
+    }, [user, fetchProjects, startPolling]);
 
     useEffect(() => {
+        if (!projectsArrState) return;
         const initializeExpandedDatabases = () => {
             const initialExpanded = {};
             projectsArrState.forEach(project => {
-                project.sqlServerViewModels.forEach(sqlServerInfo => {
+                project.sqlServerViewModels?.forEach(sqlServerInfo => {
                     sqlServerInfo.databases.forEach(databaseInfo => {
                         initialExpanded[databaseInfo.name] = true;
                     });
@@ -120,27 +199,41 @@ const Sidebar = () => {
                 overflow="hidden" // Hide overflow to prevent content from showing when collapsed
                 style={{ cursor: isResizing ? 'ew-resize' : 'default' }}
             >
-                <Box w="100%" h="50px">
+                <Box w="100%" h="50px" position="relative">
                     {/* Plus Button */}
-                    <IconButton
-                        style={{ position: "absolute", top: isOpen ? "8px" : "32px", left: "0px" }}
-                        size="sm"
-                        margin={0}
-                        padding={0}
-                        variant="ghost"
-                        onClick={() => {
-                            setShowDatabaseForm(!showDatabaseForm)
-                        }}
-                        width="16px"
-                        color={iconColor}
-                        _hover={{
-                            bg: 'transparent',
-                            color: 'blue.400',
-                        }}
-                        aria-label={'Add Database Connection'}
-                    >
-                        <Icon as={FaPlus as ElementType} sx={{ width: "16px", height: "16px" }} />
-                    </IconButton>
+                    <Flex position="absolute" direction={isOpen ? 'row' : 'column'} alignItems="center" height="100%" width="100%" top={isOpen ? 0 : 10} left={0}>
+                        <IconButton
+                            size="sm"
+                            margin={0}
+                            padding={0}
+                            variant="ghost"
+                            onClick={() => {
+                                setShowDatabaseForm(!showDatabaseForm)
+                            }}
+                            width="16px"
+                            color={iconColor}
+                            _hover={{
+                                bg: 'transparent',
+                                color: 'blue.400',
+                            }}
+                            aria-label={'Add Database Connection'}
+                        >
+                            <Icon as={FaPlus as ElementType} sx={{ width: "16px", height: "16px" }} />
+                        </IconButton>
+                        <Tooltip label="Refresh projects">
+                            <IconButton
+                                aria-label="Refresh projects"
+                                icon={<Icon as={IoRefresh as ElementType} sx={{ width: "16px", height: "16px" }} />}
+                                width="16px"
+                                color={iconColor}
+                                variant="ghost"
+                                onClick={handleRefresh}
+                                isLoading={isLoading && !isPolling}
+                                _hover={{ color: "blue.400" }}
+                            />
+                        </Tooltip>
+                    </Flex>
+
                     {/* Collapse Button */}
                     <IconButton
                         style={{ position: "absolute", top: "8px", right: "0px" }}
@@ -164,26 +257,63 @@ const Sidebar = () => {
                 {isOpen && (
                     <>
                         <Divider orientation="horizontal" color={iconColor} />
-                        <Flex direction="column">
-                            {projectsArrState.map((project, index) => (
-                                <Flex direction="column" padding="8px 8px">
-                                    <Text>{project?.name}</Text>
-                                    <Flex gap={3} key={index}>
-                                        {project?.sqlServerViewModels.map((sqlServerInfo, index) => (
-                                            <ServerItem
-                                                key={index}
-                                                project={project}
-                                                sqlServerInfo={sqlServerInfo}
-                                                toggleDatabase={toggleDatabase}
-                                                expandedDatabases={expandedDatabases}
-                                                setInstanceViewState={setInstanceViewState}
-                                            />
-                                        ))}
-                                    </Flex>
-                                </Flex>
+                        {/* Loading state */}
+                        {isLoading && (
+                            <VStack py={8} spacing={4}>
+                                <Spinner color="blue.400" size="lg" />
+                                <Text>Loading projects...</Text>
+                            </VStack>
+                        )}
 
-                            ))}
-                        </Flex>
+                        {/* Error state */}
+                        {error && !isLoading && (
+                            <VStack py={8} spacing={4}>
+                                <Text color="red.400">Error loading projects</Text>
+                                <Text fontSize="sm" color="gray.400">{error}</Text>
+                                <Button size="sm" onClick={handleRefresh} leftIcon={<Icon as={IoRefresh as ElementType} />}>
+                                    Retry
+                                </Button>
+                            </VStack>
+                        )}
+
+                        {/* Projects list */}
+                        {!isLoading && !error && (
+                            <Flex direction="column">
+                                {projectsArrState.length === 0 ? (
+                                    <VStack py={8} spacing={4}>
+                                        <Text color="gray.400">No projects found</Text>
+                                        <Text fontSize="sm" color="gray.500">
+                                            Click the + icon to add a database connection
+                                        </Text>
+                                    </VStack>
+                                ) : (
+                                    projectsArrState.map((project, index) => (
+                                        <Flex key={index} direction="column" padding="8px 8px">
+                                            <Text>{project?.name}</Text>
+                                            <Flex gap={3} direction="column" key={index}>
+                                                {project?.sqlServerViewModels?.map((sqlServerInfo, index) => (
+                                                    <ServerItem
+                                                        key={index}
+                                                        project={project}
+                                                        sqlServerInfo={sqlServerInfo}
+                                                        toggleDatabase={toggleDatabase}
+                                                        expandedDatabases={expandedDatabases}
+                                                        setInstanceViewState={setInstanceViewState}
+                                                    />
+                                                ))}
+                                            </Flex>
+                                        </Flex>
+                                    ))
+                                )}
+
+                                {/* Polling indicator */}
+                                {isPolling && (
+                                    <Flex justify="center" py={2}>
+                                        <Spinner size="xs" color="blue.300" />
+                                    </Flex>
+                                )}
+                            </Flex>
+                        )}
                     </>
                 )}
                 {/* Resize Handle */}
@@ -262,8 +392,8 @@ const ServerItem = ({ project, sqlServerInfo, toggleDatabase, expandedDatabases,
 };
 
 const DatabaseItem = ({ project, databaseInfo, sqlServerInfo, toggleDatabase, expandedDatabases, setInstanceViewState }) => {
-    const { deleteDatabase, deleteTable } = useProjectStore(state => state)
-    
+    const { deleteTable } = useProjectStore(state => state)
+
     // Create a custom title with the database icon
     const databaseTitle = (
         <Flex gap={2} alignItems="center">
@@ -272,7 +402,7 @@ const DatabaseItem = ({ project, databaseInfo, sqlServerInfo, toggleDatabase, ex
             <Text>{databaseInfo.name}</Text>
         </Flex>
     );
-    
+
     // Create table items for the expandable list
     const tableItems = databaseInfo.tables.map((tableInfo, index) => (
         <Flex
@@ -296,59 +426,52 @@ const DatabaseItem = ({ project, databaseInfo, sqlServerInfo, toggleDatabase, ex
                     isRemote: sqlServerInfo.isRemote,
                     server: sqlServerInfo.name,
                     database: databaseInfo.name,
-                    table: tableInfo.name
+                    table: tableInfo.name,
+                    sqlConfig: sqlServerInfo.sqlConfig
                 })
             }}
         >
             <Flex gap={2} alignItems="center">
                 <Icon as={HiOutlineArrowTurnDownRight as ElementType} />
                 <Icon as={FaTable as ElementType} />
-                <Text>{tableInfo.name}</Text>
+                <Flex>
+                    <Text width="6rem" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">{tableInfo.name}</Text>
+                    <IconButton
+                        aria-label="Delete table"
+                        icon={<Icon as={IoClose as ElementType} fontSize="sm" />}
+                        size="sm"
+                        variant="ghost"
+                        colorScheme="orange"
+                        className="delete-icon"
+                        sx={{
+                            background: 'transparent',
+                            // display: "none",
+                            minWidth: "auto",
+                            height: "auto",
+                            _hover: {
+                                background: 'transparent',
+                            }
+                        }}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`Are you sure you want to delete table ${tableInfo.name}?`)) {
+                                deleteTable(project.id, sqlServerInfo.name, databaseInfo.name, tableInfo.name);
+                            }
+                        }}
+                    />
+                </Flex>
             </Flex>
-            
-            <IconButton
-                aria-label="Delete table"
-                icon={<Icon as={IoClose as ElementType} fontSize="sm" />}
-                size="sm"
-                variant="ghost"
-                colorScheme="orange"
-                className="delete-icon"
-                sx={{
-                    position: 'absolute',
-                    right: '0px',
-                    background: 'transparent',
-                    display: "none",
-                    minWidth: "auto",
-                    height: "auto",
-                    padding: "4px",
-                    _hover: {
-                        background: 'transparent',
-                    }
-                }}
-                onClick={(e) => {
-                    e.stopPropagation();
-                    if (window.confirm(`Are you sure you want to delete table ${tableInfo.name}?`)) {
-                        deleteTable(project.id, sqlServerInfo.name, databaseInfo.name, tableInfo.name);
-                    }
-                }}
-            />
         </Flex>
     ));
-    
+
     return (
         <ExpandableList
             title={databaseTitle}
             items={tableItems}
-            initialExpanded={expandedDatabases[databaseInfo.name] || false}
+            initialExpanded={expandedDatabases[databaseInfo.name] || true}
             onToggle={(expanded) => toggleDatabase(databaseInfo.name)}
             showChevron={false}
             hoverColor="blue.400"
-            containerProps={{
-                paddingLeft: "4px"
-            }}
-            onDelete={() => {
-                deleteDatabase(project.id, sqlServerInfo.name, databaseInfo.name);
-            }}
             deleteConfirmMessage={`Are you sure you want to delete database ${databaseInfo.name}?`}
         />
     );

@@ -1,8 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { firebaseService } from '@/lib/services/firebaseService';
-import { msSQLService } from '@/lib/services/msSQLService';
+import { msSQLService, SqlConfig } from '@/lib/services/msSQLService';
 import { APIError } from '@/lib/errors/APIError';
 import { withAPI } from '@/lib/middlewares/index';
+import projects from '../projects';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
     const { method } = req;
@@ -11,27 +12,43 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     switch (method) {
         case 'GET':
-            let projects;
 
             // If userId is provided, filter projects by that user
             if (userId) {
-                // Assuming firebaseService has a method to fetch projects by userId
-                projects = await firebaseService.fetchProjects();
-                // Filter the projects server-side if the service doesn't have a dedicated method
-                projects = projects.filter(project => project.userId === userId);
             } else {
                 // Fetch all projects if no userId filter is provided
-                projects = await firebaseService.fetchProjects();
             }
 
             return res.status(200).json({ message: 'Projects fetched successfully', data: projects });
 
         case 'POST':
+            /**
+             * {
+             *  user: string
+             *  password: string
+             *  isRemote: boolean
+             *  server: string
+             *  database: string
+             *  table: string
+             *  query: string
+             * }
+             */
+            const { body } = req;
+            // sqlConfig
+            const sqlConfig: SqlConfig = {
+                server: body.server,
+                database: body.database,
+                user: body.user || '',
+                password: body.password || '',
+                isRemote: body.isRemote
+            };
+            const { query } = body;
 
-            await msSQLService.testConnection(req.body.sqlServerViewModels[0].sqlConfig, req.body.sqlServerViewModels[0].sqlConfig.table);
+            const results = await msSQLService.executeQuery(sqlConfig, query);
+            console.log('results:', results)
 
-            const project = await firebaseService.addProject(req.body);
-            return res.status(201).json({ message: 'Project created successfully', data: project });
+            return res.status(200).json({ message: 'Query executed successfully', data: results });
+            break;
 
         default:
             // Instead of manually handling this, throw an APIError for method not allowed

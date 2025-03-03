@@ -1,7 +1,8 @@
 import { initializeApp } from 'firebase/app';
 import { v4 as uuidv4 } from 'uuid';
 import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, query, where, DocumentSnapshot } from 'firebase/firestore';
-import { ProjectViewModel, User } from '../models';
+import { ProjectDataModel, User } from '../models';
+import { ApiError } from 'next/dist/server/api-utils';
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -22,7 +23,6 @@ const db = getFirestore(app);
 export const firebaseService = {
   //// Projects ////
   async fetchProjects() {
-    console.log('[firebaseService] fetchProjects')
     const querySnapshot = await getDocs(collection(db, 'projects'));
     const projects = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     return projects;
@@ -48,17 +48,23 @@ export const firebaseService = {
       if (!querySnapshot.empty) {
         const existingProject = querySnapshot.docs[0];
         const projectId = existingProject.id;
+        const existingData = existingProject.data() as ProjectDataModel;
 
-        // Update the existing project
+        // Deep merge the existing project with the new project data
+        const mergedProjectData = deepMergeProjects(existingData, projectData);
+        console.log('Merged project data:', JSON.stringify(mergedProjectData, null, 2));
+        console.log('Existing project data:', JSON.stringify(existingData, null, 2));
+        console.log('New project data:', JSON.stringify(projectData, null, 2));
+
+        // Update the existing project with merged data
         const projectDoc = doc(db, 'projects', projectId);
-        await updateDoc(projectDoc, projectData);
+        await updateDoc(projectDoc, mergedProjectData);
 
-        console.log(`Project '${projectData.name}' already exists. Updated existing project.`);
-        return { id: projectId, ...projectData };
+        console.log(`Project '${mergedProjectData.name}' already exists. Updated existing project with merged data.`);
+        return { id: projectId, ...mergedProjectData };
       }
 
       projectData = {
-        id: uuidv4(),
         ...projectData,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -69,7 +75,7 @@ export const firebaseService = {
       return { id: docRef.id, ...projectData };
     } catch (error) {
       console.error('Error adding/updating project:', error);
-      throw error;
+      throw new ApiError(500, `Failed to add project: ${error.message}`);
     }
   },
 
@@ -90,7 +96,7 @@ export const firebaseService = {
   async fetchProjectById(id: string, userId: string | null = null) {
     console.log('[firebaseService] fetchProjectById', id, userId)
     try {
-      const projectDoc = await getDoc(doc(db, 'projects', id)) as DocumentSnapshot<ProjectViewModel>;
+      const projectDoc = await getDoc(doc(db, 'projects', id)) as DocumentSnapshot<ProjectDataModel>;
 
       if (!projectDoc.exists()) {
         return null;
@@ -206,4 +212,97 @@ export const firebaseService = {
     await deleteDoc(userDoc);
     return { id };
   }
+};
+
+
+/**
+ * Deep merges two projects, maintaining the hierarchy structure at all levels
+ * This is particularly useful for preserving data that might be missing in updates
+ */
+const deepMergeProjects = (existingProject: ProjectDataModel, newProject: ProjectDataModel): ProjectDataModel => {
+  if (!existingProject || !newProject) return newProject || existingProject;
+
+  // Create a base merged project with primitive properties
+  const merged: ProjectDataModel = { ...existingProject, ...newProject };
+
+  // If the new project has SQL server models, we need to merge them with existing ones
+  if (newProject.sqlServerViewModels && existingProject.sqlServerViewModels) {
+    // Create a map of existing servers by name for easy lookup
+    const existingServersMap = existingProject.sqlServerViewModels.reduce((map, server) => {
+      map[server.name] = server;
+      return map;
+    }, {});
+
+    // Create merged SQL server models array
+    merged.sqlServerViewModels = newProject.sqlServerViewModels.map(newServer => {
+      const existingServer = existingServersMap[newServer.name];
+
+      // If this server doesn't exist in the existing project, use the new server as is
+      if (!existingServer) return newServer;
+
+      // Merge the server properties
+      const mergedServer = { ...existingServer, ...newServer };
+
+      // If the new server has databases, we need to merge them with existing ones
+      if (newServer.databases && existingServer.databases) {
+        // Create a map of existing databases by name for easy lookup
+        const existingDbMap = existingServer.databases.reduce((map, db) => {
+          map[db.name] = db;
+          return map;
+        }, {});
+
+        // Create merged databases array
+        mergedServer.databases = newServer.databases.map(newDb => {
+          const existingDb = existingDbMap[newDb.name];
+
+          // If this database doesn't exist in the existing server, use the new database as is
+          if (!existingDb) return newDb;
+
+          // Merge the database properties
+          const mergedDb = { ...existingDb, ...newDb };
+
+          // If the new database has tables, we need to merge them with existing ones
+          if (newDb.tables && existingDb.tables) {
+            // Create a map of existing tables by name for easy lookup
+            const existingTableMap = existingDb.tables.reduce((map, table) => {
+              map[table.name] = table;
+              return map;
+            }, {});
+
+            // Create merged tables array starting with tables from the new project
+            const mergedTables = newDb.tables.map(newTable => {
+              const existingTable = existingTableMap[newTable.name];
+
+              // If this table doesn't exist in the existing database, use the new table as is
+              if (!existingTable) return newTable;
+
+              // Merge the table properties
+              return { ...existingTable, ...newTable };
+            });
+
+            // Also include any tables from the existing database that aren't in the new database
+            const newTableNames = new Set(newDb.tables.map(t => t.name));
+            const missingTables = existingDb.tables.filter(table => !newTableNames.has(table.name));
+
+            // Set the merged tables array including both new and existing tables
+            mergedDb.tables = [...mergedTables, ...missingTables];
+          }
+
+          return mergedDb;
+        });
+      }
+
+      return mergedServer;
+    });
+
+    // Also include any servers from the existing project that aren't in the new project
+    const newServerNames = new Set(newProject.sqlServerViewModels.map(s => s.name));
+    const missingServers = existingProject.sqlServerViewModels.filter(server => !newServerNames.has(server.name));
+    merged.sqlServerViewModels = [...merged.sqlServerViewModels, ...missingServers];
+  }
+
+  // Update the timestamps
+  merged.updatedAt = new Date().toISOString();
+
+  return merged;
 };

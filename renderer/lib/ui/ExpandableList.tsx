@@ -1,4 +1,4 @@
-import { Flex, Text, Icon, IconButton, FlexProps } from "@chakra-ui/react";
+import { Flex, Text, Icon, IconButton, FlexProps, IconButtonProps } from "@chakra-ui/react";
 import { IoClose } from "react-icons/io5";
 import { ElementType, ReactNode, useState } from "react";
 import { MdKeyboardArrowDown, MdKeyboardArrowRight } from "react-icons/md";
@@ -14,7 +14,7 @@ interface ExpandableListProps {
   containerProps?: FlexProps;
   showChevron?: boolean;
   onDelete?: () => void;
-  deleteButtonProps?: FlexProps;
+  deleteButtonProps?: IconButtonProps;
   deleteConfirmMessage?: string;
 }
 
@@ -68,7 +68,7 @@ const ExpandableList = ({
           />
         )}
         {titleIcon && <Icon as={titleIcon as ElementType} />}
-        {typeof title === "string" ? <Text>{title}</Text> : title}
+        {typeof title === "string" ? <Text noOfLines={1} overflow="hidden" textOverflow="ellipsis" maxWidth="100%">{title}</Text> : title}
 
         {onDelete && (
           <IconButton

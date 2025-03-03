@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react'
 import Head from 'next/head'
 import { Flex } from '@chakra-ui/react'
+import { useInstanceStore } from '../lib/states/instanceState'
 import InstanceView from '../components/InstanceView'
-import { useInstanceStore } from '../lib/states/instance.provider'
 
 export default function HomePage() {
     const { instanceViewState } = useInstanceStore(state => state)

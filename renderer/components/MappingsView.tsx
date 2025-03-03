@@ -4,17 +4,17 @@ import {
 } from '@chakra-ui/react';
 import { FaDownload, FaSync, FaUpload } from 'react-icons/fa';
 import useExportToExcel from '../lib/hooks/useExportToExcel';
-import { MappingViewModel } from '../lib/models';
+import { MappingsViewModel } from '../lib/models';
 import WaterfallInput from './WaterfallInput';
 import { getHeadTextColor, getTableBorderColor } from '../lib/themes/theme';
 import { toDollar } from '../lib/helpers/numericHelper';
-import { useInstanceStore } from '../lib/states/instance.provider';
-import { useMappingsStore } from '../lib/states/mappings.provider';
+import { useInstanceStore } from '../lib/states/instanceState';
+import { useMappingsStore } from '@/lib/states/mappingsState';
 
-// Main MappingView component
-const MappingView: React.FC = () => {
+// Main MappingsView component
+const MappingsView: React.FC = () => {
   const { instanceViewState } = useInstanceStore(state => state);
-  const { mappingsArrState, setMappingsArrState, saveMappingsToIndexedDB, modifyWaterfallGroup, refreshMappingsState } = useMappingsStore(state => state);
+  const { mappingsArrState, setMappingsArrState, saveMappingsToIndexedDB, modifyWaterfallGroup, refreshMappingsArrState } = useMappingsStore(state => state);
   const exportTableToExcel = useExportToExcel();
   const toast = useToast();
 
@@ -24,8 +24,15 @@ const MappingView: React.FC = () => {
   const { colorMode } = useColorMode();
   const tabBorderColor = getTableBorderColor(colorMode, 0.5);
 
+  // Fetch data on mount or when projectViewState changes
+  useEffect(() => {
+    if (!instanceViewState) return;
+
+    fetchMappingsViewsState();
+  }, [instanceViewState]);
+
   // Data fetching function with error handling
-  const fetchMappingViewsState = async () => {
+  const fetchMappingsViewsState = async () => {
     setLoading(true);
     setError(null);
 
@@ -41,13 +48,13 @@ const MappingView: React.FC = () => {
   }
 
   // Data fetching function with error handling
-  const refreshFetchMappingViewsState = async () => {
+  const refreshFetchMappingsViewsState = async () => {
     setLoading(true);
     setError(null);
 
     setTimeout(async () => {
       try {
-        await refreshMappingsState(instanceViewState);
+        await refreshMappingsArrState(instanceViewState);
         toast({
           title: 'Mapping refreshed successfully.',
           status: 'success',
@@ -69,13 +76,8 @@ const MappingView: React.FC = () => {
     }, 500);
   }
 
-  // Fetch data on mount or when instanceViewState changes
-  useEffect(() => {
-    fetchMappingViewsState();
-  }, [instanceViewState]);
-
   // Export mapping data to Excel
-  const handleExport = (mapping: MappingViewModel) => {
+  const handleExport = (mapping: MappingsViewModel) => {
     const headers = [
       'Waterfall_Group',
       `${mapping.keyword}_Group_Final`,
@@ -122,7 +124,7 @@ const MappingView: React.FC = () => {
   };
 
   // Render loading state
-  if (loading) {
+  if (loading || !mappingsArrState || mappingsArrState.length === 0) {
     return <Spinner sx={{ position: 'fixed', top: '45%', left: '55%', transform: 'translate(-50%, -50%)' }} size="xl" />;
   }
 
@@ -163,7 +165,7 @@ const MappingView: React.FC = () => {
               <Flex sx={{ position: "absolute", top: 0, right: 0, bottom: '10%', gap: 1 }}>
                 <Tooltip label="Refresh Mapping">
                   <IconButton
-                    onClick={() => refreshFetchMappingViewsState()}
+                    onClick={() => refreshFetchMappingsViewsState()}
                     size="sm"
                     colorScheme="blue"
                     variant="outline"
@@ -206,11 +208,11 @@ const MappingView: React.FC = () => {
   );
 };
 
-export default MappingView;
+export default MappingsView;
 
 // Interface for MappingTable props
 interface MappingTableProps {
-  mapping: MappingViewModel;
+  mapping: MappingsViewModel;
   mappingIndex: number;
   modifyWaterfallGroup: (mappingIndex: number, rowIndex: number, newVal: string) => void;
 }

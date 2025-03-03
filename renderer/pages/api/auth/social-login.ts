@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { firebaseService } from '@/lib/services/firebaeService';
+import { firebaseService } from '@/lib/services/firebaseService';
 import { User } from '@/lib/models';
 import { generateToken } from '@/lib/services/tokenService';
 

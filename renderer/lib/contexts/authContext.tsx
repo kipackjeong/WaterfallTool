@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { apiService } from '../services/apiService';
+import apiClient from '../api/apiClient';
 import { User } from '../models';
 import CryptoJS from 'crypto-js';
 import { authService } from '../services/authService';
@@ -67,10 +67,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ).toString();
 
       // Call the login API endpoint with encrypted password
-      const user = await apiService.post('/auth/login', {
+      const response = await apiClient.post('/auth/login', {
         email,
         password: encryptedPassword
       });
+      const user = response.data;
 
       // Validate the response
       if (!user || !user.id || !user.email) {
@@ -128,7 +129,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
 
       // Call the register API endpoint
-      const user = await apiService.post('/auth/register', userPayload);
+      const response = await apiClient.post('/auth/register', userPayload);
+      const user = response.data;
 
       // Validate the response
       if (!user || !user.id || !user.email) {
@@ -164,10 +166,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const response = await authService.promptGoogleSignIn(GOOGLE_CLIENT_ID);
 
           // Send the Google credential to our backend
-          const user = await apiService.post('/auth/social-login', {
+          const apiResponse = await apiClient.post('/auth/social-login', {
             provider,
             token: response.credential
           });
+          const user = apiResponse.data;
 
           // Validate the response
           if (!user || !user.id || !user.email) {
@@ -187,7 +190,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } else if (provider === 'apple') {
         // Apple authentication will be implemented later
-        const user = await apiService.post('/auth/social-login', { provider });
+        const apiResponse = await apiClient.post('/auth/social-login', { provider });
+        const user = apiResponse.data;
 
         // Validate the response
         if (!user || !user.id || !user.email) {

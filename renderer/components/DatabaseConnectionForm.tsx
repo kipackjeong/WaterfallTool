@@ -10,13 +10,11 @@ import {
     ModalOverlay,
     Radio,
     RadioGroup,
-    Text,
     useToast,
 } from "@chakra-ui/react"
 import { ElementType, useEffect, useState } from "react"
 import { FaTimes } from "react-icons/fa"
-import useSqlQuery from "../lib/hooks/useSqlQuery"
-import { useProjectStore } from "../lib/states/projects.provider"
+import { useProjectStore } from "../lib/states/projectsState"
 import TextInput from "./TextInput"
 import { ProjectViewModel } from "@/lib/models"
 import { useAuth } from "@/lib/contexts/authContext"
@@ -28,10 +26,12 @@ function DatabaseConnectionForm({ isOpen }: DatabaseConnectionFormProps) {
     const { projectsArrState, addProject } = useProjectStore(state => state)
     const { user } = useAuth()
     const [projectName, setProjectName] = useState("sample")
-    const [server, setServerName] = useState("sandboxvbasqlserver")
-    const [database, setDatabaseName] = useState("sampledb")
-    const [table, setTableName] = useState("DataSource")
+    const [serverName, setServerName] = useState("sandboxvbasqlserver.database.windows.net")
+    const [databaseName, setDatabaseName] = useState("sampledb")
+    const [tableName, setTableName] = useState("DataSource")
     const [modelName, setModelName] = useState("")
+    const [userName, setUser] = useState("") // State for username
+    const [password, setPassword] = useState("") // State for password
     const [_isOpen, _setIsOpen] = useState(isOpen)
     const [connectionType, setConnectionType] = useState('local'); // New state for connection type
 
@@ -40,31 +40,49 @@ function DatabaseConnectionForm({ isOpen }: DatabaseConnectionFormProps) {
     useEffect(() => {
         _setIsOpen(isOpen)
     }, [isOpen])
-    const { runSqlServerHandshake } = useSqlQuery()
 
     const connectToDatabase = async () => {
-        //TODO: https://dev.to/abulhasanlakhani/connecting-to-sql-server-from-electron-react-1kdi
-        const projectPayload: ProjectViewModel = {
-            userId: user.id,
-            name: projectName,
-            sqlServerViewModels: [{
-                isRemote: connectionType == 'remote',
-                name: server,
-                databases: [{
-                    server: server,
-                    name: database,
-                    tables: [{ name: table }],
-                    model: ''
+        try {
+            //TODO: https://dev.to/abulhasanlakhani/connecting-to-sql-serverName-from-electron-react-1kdi
+            const projectPayload: ProjectViewModel = {
+                userId: user.id,
+                name: projectName,
+                sqlServerViewModels: [{
+                    isRemote: connectionType == 'remote',
+                    name: serverName,
+                    databases: [{
+                        server: serverName,
+                        name: databaseName,
+                        tables: [{ name: tableName }],
+                        model: modelName
+                    }],
+                    sqlConfig: {
+                        server: serverName,
+                        database: databaseName,
+                        table: tableName,
+                        isRemote: connectionType == 'remote',
+                        user: userName,
+                        password,
+                        port: 1433,
+                        options: {
+                            encrypt: true,
+                            trustServerCertificate: true
+                        }
+                    }
                 }]
-            }]
+            }
+
+            addProject(projectPayload);
+        } catch (err) {
+            toast({
+                title: 'Error',
+                description: "Failed to connect to database",
+                status: 'error',
+                duration: 3000,
+                isClosable: true,
+            })
         }
 
-        addProject(projectPayload);
-
-        runSqlServerHandshake({ server: server, database, table, isRemote: connectionType == 'remote' }).then(async (res) => {
-            if (!res) return;
-            await addProject(projectPayload)
-        })
     };
 
     return (
@@ -103,21 +121,21 @@ function DatabaseConnectionForm({ isOpen }: DatabaseConnectionFormProps) {
                             />
                             <TextInput
                                 labelText="Server"
-                                value={server}
+                                value={serverName}
                                 onChange={(event) =>
                                     setServerName(event.target.value)
                                 }
                             />
                             <TextInput
                                 labelText="Database"
-                                value={database}
+                                value={databaseName}
                                 onChange={(event) =>
                                     setDatabaseName(event.target.value)
                                 }
                             />
                             <TextInput
                                 labelText="Table Name"
-                                value={table}
+                                value={tableName}
                                 onChange={(event) =>
                                     setTableName(event.target.value)
                                 }
@@ -127,6 +145,21 @@ function DatabaseConnectionForm({ isOpen }: DatabaseConnectionFormProps) {
                                 value={modelName}
                                 onChange={(event) =>
                                     setModelName(event.target.value)
+                                }
+                            />
+                            <TextInput
+                                labelText="Username"
+                                value={userName}
+                                onChange={(event) =>
+                                    setUser(event.target.value)
+                                }
+                            />
+                            <TextInput
+                                labelText="Password"
+                                type="password"
+                                value={password}
+                                onChange={(event) =>
+                                    setPassword(event.target.value)
                                 }
                             />
                             <Button
@@ -139,12 +172,24 @@ function DatabaseConnectionForm({ isOpen }: DatabaseConnectionFormProps) {
 
                                     let valid = true;
                                     let inputError = "";
-                                    if (!server) {
+                                    if (!serverName) {
                                         inputError = inputError + "Server is required.\n";
                                         valid = false;
                                     }
-                                    if (!database) {
+                                    if (!databaseName) {
                                         inputError = inputError + "Database is required.\n";
+                                        valid = false;
+                                    }
+                                    if (!tableName) {
+                                        inputError = inputError + "Table name is required.\n";
+                                        valid = false;
+                                    }
+                                    // if (!modelName) {
+                                    //     inputError = inputError + "Model name is required.\n";
+                                    //     valid = false;
+                                    // }
+                                    if (!userName) {
+                                        inputError = inputError + "Username is required for remote connections.\n";
                                         valid = false;
                                     }
 

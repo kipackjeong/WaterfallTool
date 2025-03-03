@@ -1,3 +1,5 @@
+import { SqlConfig } from "./services/msSQLService";
+
 export type ProjectViewModel = {
     id?: string;
     userId: string;
@@ -6,11 +8,14 @@ export type ProjectViewModel = {
 };
 
 export type ProjectDataModel = {
+    updatedAt: string
+    createdAt: string
 } & ProjectViewModel
 
 export type SqlServerViewModel = {
     isRemote: boolean
     name: string
+    sqlConfig: SqlConfig
     databases: DatabaseViewModel[]
 }
 
@@ -19,8 +24,6 @@ export type DatabaseViewModel = {
     server: string
     tables?: TableViewModel[]
     model?: string
-    user?: string
-    password?: string
 }
 
 export type TableViewModel = {
@@ -32,11 +35,18 @@ export type InstanceViewModel = {
     server: string
     database?: string
     table: string
-    user?: string
-    password?: string
+    sqlConfig: SqlConfig
+    dataCount: number
+    waterfallCohortsTableData: {
+        waterfallCohortName: string
+        run: boolean
+        aggregate: boolean
+        count: number
+    }[]
+    numericTableData: any[]
 }
 
-export type MappingViewModel = {
+export type MappingsViewModel = {
     tabName: string
     keyword: string
     data: any[]
