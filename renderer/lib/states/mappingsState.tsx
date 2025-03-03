@@ -42,38 +42,31 @@ export const createMappingsStore = (
             const mappingsArrState = await _queryMappingsArr(instanceViewState);
             console.log('mappingsArrState:', mappingsArrState)
 
-            set((prevState) => {
-              return {
-                ...prevState,
-                mappingsArrState: mappingsArrState,
-              }
-            })
+            set((prevState) => ({ ..._.cloneDeep(prevState), mappingsArrState }))
           },
 
           refreshMappingsArrState: async (instanceViewState: InstanceViewModel) => {
             const mappingsArrState = syncWaterfallGroupWithFinalGroup(await _queryMappingsArr(instanceViewState));
 
-            set((prevState) => {
-              return {
-                ...prevState,
-                mappingsArrState: mappingsArrState,
-              }
-            })
+            set((prevState) => ({ ..._.cloneDeep(prevState), mappingsArrState }))
           },
 
           addMapping: (newMapping: MappingsViewModel) => set((prevState) => {
-            return {
-              ...prevState,
-              mappingsArrState: [...prevState.mappingsArrState, newMapping],
-            }
+            // Clone and add the new mapping
+            const mappingsArrState = [..._.cloneDeep(prevState.mappingsArrState), newMapping];
+            return { ..._.cloneDeep(prevState), mappingsArrState };
           }),
 
           modifyWaterfallGroup: (mappingIndex: number, rowIndex: number, newWaterfallGroup: string) => {
             set((prevState) => {
-              const newState = { ...prevState }
-              newState.mappingsArrState[mappingIndex].data[rowIndex].Waterfall_Group = newWaterfallGroup
+              // Clone the state first
+              const cloned = _.cloneDeep(prevState);
 
-              return newState
+              // Update the specific field
+              cloned.mappingsArrState[mappingIndex].data[rowIndex].Waterfall_Group = newWaterfallGroup;
+
+              // Return with the spread operator pattern
+              return { ...cloned };
             })
           },
 
@@ -82,9 +75,8 @@ export const createMappingsStore = (
               // INDEXED_DB_SERVICE.put(prevState.indexedDBKey, prevState.mappingsArrState);
             } catch (error) {
               console.error("Error saving mappings state to IndexedDB:", error);
-            } finally {
-              return prevState
             }
+            return { ..._.cloneDeep(prevState) };
           }),
 
         }

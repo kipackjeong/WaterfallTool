@@ -23,6 +23,7 @@ const MappingsView: React.FC = () => {
 
   const { colorMode } = useColorMode();
   const tabBorderColor = getTableBorderColor(colorMode, 0.5);
+  const [reRender, setReRender] = useState(false);
 
   // Fetch data on mount or when projectViewState changes
   useEffect(() => {
@@ -30,6 +31,13 @@ const MappingsView: React.FC = () => {
 
     fetchMappingsViewsState();
   }, [instanceViewState]);
+
+  useEffect(() => {
+    console.log('mappingsArrState:', mappingsArrState)
+    if (!mappingsArrState || mappingsArrState.length === 0)
+      setReRender(!reRender);
+
+  }, [mappingsArrState]);
 
   // Data fetching function with error handling
   const fetchMappingsViewsState = async () => {
@@ -124,10 +132,9 @@ const MappingsView: React.FC = () => {
   };
 
   // Render loading state
-  if (loading || !mappingsArrState || mappingsArrState.length === 0) {
+  if (loading) {
     return <Spinner sx={{ position: 'fixed', top: '45%', left: '55%', transform: 'translate(-50%, -50%)' }} size="xl" />;
   }
-
   // Render error state
   if (error) {
     return <Text color="red.500">{error}</Text>;

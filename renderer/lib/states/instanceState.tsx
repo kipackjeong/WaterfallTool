@@ -27,7 +27,7 @@ export const createInstanceStore = (
             (set) => ({
                 ...initState,
                 initInstance: async (instanceViewState: InstanceViewModel) => {
-                    set({ instanceViewState });
+                    set(prevState => ({ ..._.cloneDeep(prevState), instanceViewState }));
                 },
 
                 setInstanceViewState: async (newInstanceViewState: InstanceViewModel) => {
@@ -159,8 +159,8 @@ export const createInstanceStore = (
                         );
 
                         // Update state with all the collected data
-                        set(prevState => ({
-                            ...prevState,
+                        set(prevState => ({ 
+                            ..._.cloneDeep(prevState), 
                             instanceViewState: {
                                 ...newInstanceViewState,
                                 waterfallCohortsTableData,
@@ -170,9 +170,9 @@ export const createInstanceStore = (
                     } catch (err) {
                         console.error('Error setting instance view state:', err);
                         // Still update with the new instance state even if data fetching fails
-                        set(prevState => ({
-                            ...prevState,
-                            instanceViewState: newInstanceViewState
+                        set(prevState => ({ 
+                            ..._.cloneDeep(prevState), 
+                            instanceViewState: newInstanceViewState 
                         }));
                     }
                 },
