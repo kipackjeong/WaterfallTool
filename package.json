@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "tsc -p renderer && next dev renderer",
     "build": "next build renderer",
+    "export": "next build renderer && next export renderer -o renderer/out",
     "start": "next start renderer",
     "dev:desktop": "npm run build:desktop && electron .",
     "build:desktop": "npm run clean && npm run build:electron",
@@ -19,7 +20,7 @@
     "postinstall": "electron-builder install-app-deps",
     "clean": "rimraf dist renderer/.next main/*.js main/**/*.js",
     "build:main": "tsc -p main",
-    "build:renderer": "next build renderer",
+    "build:renderer": "next build renderer && next export renderer -o renderer/out",
     "build:electron": "npm run build:renderer && npm run build:main",
     "lint": "next lint renderer",
     "test": "jest",
@@ -80,8 +81,11 @@
     "appId": "com.waterfalltool",
     "productName": "Waterfall Tool",
     "files": [
-      "main/*.js",
-      "renderer"
+      "main/**/*.js",
+      "renderer/.next/**/*",
+      "renderer/out/**/*",
+      "renderer/public/**/*",
+      "node_modules/**/*"
     ],
     "mac": {
       "category": "public.app-category.productivity",

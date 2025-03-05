@@ -22,7 +22,16 @@ import { toastEvents } from '../helpers/toastEvents';
  * const response = await apiClient.delete('/endpoint');
  * const data = response.data.data;
  */
-const apiClient = axios.create({
+
+// Log platform information for debugging
+if (typeof navigator !== 'undefined') {
+    console.log('User Agent:', navigator.userAgent);
+}
+
+console.log('Window has electronAPI?', typeof window !== 'undefined' && !!window.electronAPI);
+
+// Create the axios instance for browser environment
+const axiosInstance = axios.create({
     baseURL: '/api',
     headers: {
         'Content-Type': 'application/json',
@@ -30,7 +39,7 @@ const apiClient = axios.create({
 });
 
 // Add response interceptor to extract data.data for convenience
-apiClient.interceptors.response.use(
+axiosInstance.interceptors.response.use(
     (res) => {
         console.log(`[apiClient] Response from ${res.config.method?.toUpperCase()} ${res.config.url}:`, res);
         return res.data;
@@ -39,8 +48,31 @@ apiClient.interceptors.response.use(
         console.error(`[apiClient] Error:`, err);
         const errMsg = err.response?.data?.message && JSON.stringify(err.response?.data.message) || 'An error occurred';
         toastEvents.emit(errMsg, 'error');
-        return null;
+        return Promise.reject(err);
     }
 );
+
+// Create a unified API client that works in both browser and Electron
+const apiClient = {
+    get: async (url: string, config?: AxiosRequestConfig) => {
+        console.log(`[apiClient] Request GET ${url}`);
+        return axiosInstance.get(url, config);
+    },
+
+    post: async (url: string, data?: any, config?: AxiosRequestConfig) => {
+        console.log(`[apiClient] Request POST ${url}`);
+        return axiosInstance.post(url, data, config);
+    },
+
+    put: async (url: string, data?: any, config?: AxiosRequestConfig) => {
+        console.log(`[apiClient] Request PUT ${url}`);
+        return axiosInstance.put(url, data, config);
+    },
+
+    delete: async (url: string, config?: AxiosRequestConfig) => {
+        console.log(`[apiClient] Request DELETE ${url}`);
+        return axiosInstance.delete(url, config);
+    },
+};
 
 export default apiClient;

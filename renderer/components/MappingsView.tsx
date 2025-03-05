@@ -1,25 +1,25 @@
 import React, { ElementType, useEffect, useRef, useState } from 'react';
 import {
-    Flex, Icon, IconButton, Spinner, Tab, Table, TabList, TabPanel, TabPanels, Tabs, Tbody, Td, Text, Th, Thead, Tooltip, Tr, useColorMode, useColorModeValue, useToast
+    Flex, Icon, IconButton, Tab, Table, TabList, TabPanel, TabPanels, Tabs, Tbody, Td, Text, Th, Thead, Tooltip, Tr, useColorMode, useColorModeValue, useToast
 } from '@chakra-ui/react';
 import { FaDownload, FaSync, FaUpload } from 'react-icons/fa';
 import useExportToExcel from '../lib/hooks/useExportToExcel';
 import { MappingsViewModel } from '../lib/models';
 import WaterfallInput from './WaterfallInput';
 import { getHeadTextColor, getTableBorderColor } from '../lib/themes/theme';
+import LoadingSpinner from './common/LoadingSpinner';
 import { toDollar } from '../lib/helpers/numericHelper';
 import { useInstanceStore } from '../lib/states/instanceState';
 import { useMappingsStore } from '@/lib/states/mappingsState';
 import _ from 'lodash';
 
 // Main MappingsView component
-const MappingsView: React.FC = () => {
+const MappingsView: React.FC<{ setLoading: (value: boolean) => void }> = ({ setLoading }) => {
     const { instanceViewState } = useInstanceStore(state => state);
-    const { mappingsArrState, setMappingsArrState, saveMappingsToIndexedDB, modifyWaterfallGroup, refreshMappingsArrState } = useMappingsStore(state => state);
+    const { mappingsArrState, setMappingsArrState, upsyncMappings, refreshMappingsArrState, modifyWaterfallGroup } = useMappingsStore(state => state);
     const exportTableToExcel = useExportToExcel();
     const toast = useToast();
 
-    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const { colorMode } = useColorMode();
@@ -53,33 +53,37 @@ const MappingsView: React.FC = () => {
     };
 
     // Data fetching function with error handling
-    const refreshFetchMappingsViewsState = async () => {
-        setLoading(true);
-        setError(null);
+    // const refreshFetchMappingsViewsState = async () => {
+    //     setLoading(true);
+    //     setError(null);
 
-        setTimeout(async () => {
-            try {
-                await refreshMappingsArrState(instanceViewState);
-                toast({
-                    title: 'Mapping refreshed successfully.',
-                    status: 'success',
-                    duration: 3000,
-                    isClosable: true
-                })
-            } catch (error) {
-                setError('Failed to fetch mapping views state.');
-                toast({
-                    title: 'Error',
-                    description: 'Failed to refresh mapping views state.',
-                    status: 'error',
-                    duration: 3000,
-                    isClosable: true
-                })
-            } finally {
-                setLoading(false);
-            }
-        }, 500);
-    }
+    //     setTimeout(async () => {
+    //         try {
+    //             await refreshMappingsArrState(instanceViewState);
+    //             toast({
+    //                 title: 'Mapping refreshed successfully.',
+    //                 status: 'success',
+    //                 duration: 3000,
+    //                 isClosable: true
+    //             })
+    //         } catch (error) {
+    //             setError('Failed to fetch mapping views state.');
+    //             toast({
+    //                 title: 'Error',
+    //                 description: 'Failed to refresh mapping views state.',
+    //                 status: 'error',
+    //                 duration: 3000,
+    //                 isClosable: true
+    //             })
+    //         } finally {
+    //             setLoading(false);
+    //             setLoading(true);
+    //             setTimeout(() => {
+    //                 setLoading(false);
+    //             }, 1000);
+    //         }
+    //     }, 500);
+    // }
 
     // Export mapping data to Excel
     const handleExport = (mapping: MappingsViewModel) => {
@@ -106,13 +110,13 @@ const MappingsView: React.FC = () => {
         exportTableToExcel(headers, data, `${mapping.keyword}_Mapping`);
     };
 
-    // Upload mappings to IndexedDB with feedback
+    // Upload mappings to server with feedback
     const handleUpload = async () => {
         try {
-            await saveMappingsToIndexedDB();
+            await upsyncMappings();
             toast({
                 title: 'Success',
-                description: 'Mappings uploaded successfully.',
+                description: 'Mappings saved to database successfully.',
                 status: 'success',
                 duration: 3000,
                 isClosable: true,
@@ -120,7 +124,7 @@ const MappingsView: React.FC = () => {
         } catch (err) {
             toast({
                 title: 'Error',
-                description: 'Failed to upload mappings.',
+                description: 'Failed to save mappings to database.',
                 status: 'error',
                 duration: 3000,
                 isClosable: true,
@@ -128,10 +132,6 @@ const MappingsView: React.FC = () => {
         }
     };
 
-    // Render loading state
-    if (loading) {
-        return <Spinner sx={{ position: 'fixed', top: '45%', left: '55%', transform: 'translate(-50%, -50%)' }} size="xl" />;
-    }
     // Render error state
     if (error) {
         return <Text color="red.500">{error}</Text>;
@@ -169,7 +169,7 @@ const MappingsView: React.FC = () => {
                             <Flex sx={{ position: "absolute", top: 0, right: 0, bottom: '10%', gap: 1 }}>
                                 <Tooltip label="Refresh Mapping">
                                     <IconButton
-                                        onClick={() => refreshFetchMappingsViewsState()}
+                                        onClick={() => fetchMappingsViewsState()}
                                         size="sm"
                                         colorScheme="blue"
                                         variant="outline"

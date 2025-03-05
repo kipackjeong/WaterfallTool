@@ -36,7 +36,6 @@ export const createProjectStore = (
         return {
           ...initState,
           initProjects: async (user: User) => {
-            console.debug('[projectsState] addProject')
             try {
               const res = await apiClient.get('projects', { params: { userId: user.id } });
               const projectsArrState = res.data;

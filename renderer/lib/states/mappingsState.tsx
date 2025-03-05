@@ -16,7 +16,7 @@ export type MappingsActions = {
   setMappingsArrState: (instanceViewState: InstanceViewModel) => Promise<void>
   addMapping: (newMapping: MappingsViewModel) => void
   modifyWaterfallGroup: (mappingIndex: number, rowIndex: number, newWaterfallGroup: string) => void
-  saveMappingsToIndexedDB: () => Promise<void>
+  upsyncMappings: () => Promise<void>
   refreshMappingsArrState: (instanceViewState: InstanceViewModel) => Promise<void>
 }
 
@@ -42,41 +42,69 @@ export const createMappingsStore = (
             const mappingsArrState = await _queryMappingsArr(instanceViewState);
             console.log('mappingsArrState:', mappingsArrState)
 
-            set((prevState) => ({ ..._.cloneDeep(prevState), mappingsArrState }))
+            set((prevState) => {
+              const newState = _.cloneDeep(prevState);
+              newState.mappingsArrState = mappingsArrState;
+              return newState;
+            })
           },
 
           refreshMappingsArrState: async (instanceViewState: InstanceViewModel) => {
-            const mappingsArrState = syncWaterfallGroupWithFinalGroup(await _queryMappingsArr(instanceViewState));
+            const mappingsArrState = await _queryMappingsArr(instanceViewState);
+            console.log('mappingsArrState:', mappingsArrState)
 
-            set((prevState) => ({ ..._.cloneDeep(prevState), mappingsArrState }))
+            set((prevState) => {
+              const newState = _.cloneDeep(prevState);
+              newState.mappingsArrState = mappingsArrState;
+              return newState;
+            })
           },
 
           addMapping: (newMapping: MappingsViewModel) => set((prevState) => {
-            // Clone and add the new mapping
-            const mappingsArrState = [..._.cloneDeep(prevState.mappingsArrState), newMapping];
-            return { ..._.cloneDeep(prevState), mappingsArrState };
+            // Clone the state
+            const newState = _.cloneDeep(prevState);
+            // Add the new mapping
+            newState.mappingsArrState = [...newState.mappingsArrState, newMapping];
+            // Return the new state
+            return newState;
           }),
 
           modifyWaterfallGroup: (mappingIndex: number, rowIndex: number, newWaterfallGroup: string) => {
             set((prevState) => {
-              // Clone the state first
-              const cloned = _.cloneDeep(prevState);
+              // Clone the state
+              const newState = _.cloneDeep(prevState);
 
               // Update the specific field
-              cloned.mappingsArrState[mappingIndex].data[rowIndex].Waterfall_Group = newWaterfallGroup;
+              newState.mappingsArrState[mappingIndex].data[rowIndex].Waterfall_Group = newWaterfallGroup;
 
-              // Return with the spread operator pattern
-              return { ...cloned };
+              // Return the modified state
+              return newState;
             })
           },
+          upsyncMappings: async () => {
+            // const mappingsArrState = get().mappingsArrState;
+            // try {
+            //   // Call POST /mappings
+            //   await apiClient.post('mappings', mappingsArrState);
+            // } catch (error) {
+            //   console.error('Error saving mappings to DB:', error);
+            //   throw error; // Re-throw error to be caught by UI
+            // }
 
+            // // No state change needed for this operation
+            // set((prevState) => {
+            //   const newState = _.cloneDeep(prevState);
+            //   return newState;
+            // })
+          },
           saveMappingsToIndexedDB: async () => set((prevState) => {
             try {
               // INDEXED_DB_SERVICE.put(prevState.indexedDBKey, prevState.mappingsArrState);
             } catch (error) {
               console.error("Error saving mappings state to IndexedDB:", error);
             }
-            return { ..._.cloneDeep(prevState) };
+            const newState = _.cloneDeep(prevState);
+            return newState;
           }),
 
         }
@@ -154,9 +182,14 @@ async function _queryMappingsArr(instanceViewState: InstanceViewModel): Promise<
 
   return mappingsArrState.sort((a, b) => a.tabName.localeCompare(b.tabName));
 }
-function syncWaterfallGroupWithFinalGroup(mappingsArrState: MappingsViewModel[]): MappingsViewModel[] {
-  return mappingsArrState.map((mapping) => {
+function syncWaterfallGroupWithFinalGroup(mappingsArr: MappingsViewModel[]): MappingsViewModel[] {
+  console.log('mappingsArr:', mappingsArr)
+  const waterfallGroupSyncedMappingsArr = _.cloneDeep(mappingsArr)
+  console.log('waterfallGroupSyncedMappingsArr:', waterfallGroupSyncedMappingsArr)
+
+  return mappingsArr.map((mapping) => {
     mapping.data = mapping.data.map((row) => {
+      console.log('row:', row)
       row.Waterfall_Group = row[`${mapping.keyword}_Group_Final`];
       return row;
     });

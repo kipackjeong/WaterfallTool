@@ -9,7 +9,6 @@ import {
   Th,
   Thead,
   Tr,
-  Spinner,
   Button,
   Select,
   Icon,
@@ -17,6 +16,7 @@ import {
 } from '@chakra-ui/react';
 import { useInstanceStore } from '../lib/states/instanceState';
 import { motion } from 'framer-motion';
+import LoadingSpinner from './common/LoadingSpinner';
 import { ChevronUpIcon, ChevronDownIcon } from '@chakra-ui/icons';
 import { getDarkestThemeColor, getTableBorderColor } from '../lib/themes/theme';
 import { toDollar } from '../lib/helpers/numericHelper';
@@ -148,14 +148,13 @@ const InstanceView = () => {
     );
   };
 
-  if (!instanceViewState || loading) {
-    return (
-      <LoadingSpinner />
-    );
-  }
+
 
   return (
     <Flex width="100%" direction="column" position="relative">
+      {!instanceViewState || loading &&
+        <LoadingSpinner />
+      }
       {/* Pull-down Drawer (Blind-like animation) */}
       <motion.div
         className="motion.div"
@@ -252,8 +251,8 @@ const InstanceView = () => {
         <Flex sx={{ width: "100%", height: "100%" }} direction="column" alignItems="center" justifyContent="center" p={4} gap={4}> {/* Increased padding to account for the visible drawer portion */}
           {/* Distribution line for grok */}
           <MappingsStoreProvider>
-            <Suspense fallback={<Spinner size="xl" />}>
-              <MappingsView />
+            <Suspense fallback={<LoadingSpinner />}>
+              <MappingsView setLoading={setLoading} />
             </Suspense>
           </MappingsStoreProvider>
         </Flex>
@@ -305,21 +304,4 @@ const NumericFieldRow = ({ field, borderColor }) => (
       {field.fieldName.includes('Amount') ? toDollar(field.total) : field.total}
     </Td>
   </Tr >
-);
-
-const LoadingSpinner = () => (
-  <Flex
-    sx={{
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 100, // Ensure it's above other content
-    }}
-  >
-    <Spinner size="xl" />
-  </Flex>
 );

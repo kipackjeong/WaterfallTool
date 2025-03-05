@@ -2,10 +2,9 @@ import { type ReactNode, createContext, useRef, useContext } from 'react'
 import { useStore } from 'zustand'
 import { createStore } from 'zustand/vanilla'
 import { devtools } from 'zustand/middleware'
-import { InstanceViewModel, ProjectViewModel } from '../models'
+import { InstanceViewModel } from '../models'
 import apiClient from '../api/apiClient'
 import * as _ from 'lodash';
-import { SqlConfig, msSQLService } from '../services/msSQLService'
 
 export type InstanceState = {
     instanceViewState: InstanceViewModel
@@ -27,7 +26,11 @@ export const createInstanceStore = (
             (set) => ({
                 ...initState,
                 initInstance: async (instanceViewState: InstanceViewModel) => {
-                    set(prevState => ({ ..._.cloneDeep(prevState), instanceViewState }));
+                    set(prevState => {
+                        const newState = _.cloneDeep(prevState);
+                        newState.instanceViewState = instanceViewState;
+                        return newState;
+                    });
                 },
 
                 setInstanceViewState: async (newInstanceViewState: InstanceViewModel) => {
@@ -159,21 +162,23 @@ export const createInstanceStore = (
                         );
 
                         // Update state with all the collected data
-                        set(prevState => ({ 
-                            ..._.cloneDeep(prevState), 
-                            instanceViewState: {
+                        set(prevState => {
+                            const newState = _.cloneDeep(prevState);
+                            newState.instanceViewState = {
                                 ...newInstanceViewState,
                                 waterfallCohortsTableData,
                                 numericTableData
-                            }
-                        }));
+                            };
+                            return newState;
+                        });
                     } catch (err) {
                         console.error('Error setting instance view state:', err);
                         // Still update with the new instance state even if data fetching fails
-                        set(prevState => ({ 
-                            ..._.cloneDeep(prevState), 
-                            instanceViewState: newInstanceViewState 
-                        }));
+                        set(prevState => {
+                            const newState = _.cloneDeep(prevState);
+                            newState.instanceViewState = newInstanceViewState;
+                            return newState;
+                        });
                     }
                 },
 

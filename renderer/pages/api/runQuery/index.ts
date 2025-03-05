@@ -45,7 +45,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             const { query } = body;
 
             const results = await msSQLService.executeQuery(sqlConfig, query);
-            console.log('results:', results)
 
             return res.status(200).json({ message: 'Query executed successfully', data: results });
             break;
