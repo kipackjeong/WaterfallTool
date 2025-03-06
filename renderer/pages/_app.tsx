@@ -6,7 +6,7 @@ import { InstanceStoreProvider } from '../lib/states/instanceState'
 import { ProjectStoreProvider } from '../lib/states/projectsState'
 import { AuthProvider } from '../lib/contexts/authContext'
 import AuthGuard from '../components/AuthGuard'
-import { toastEvents } from '@/lib/helpers/toastEvents'
+import { toastEvents } from '@/lib/utils/toastEvents'
 import { useEffect } from 'react'
 
 function MyApp({ Component, pageProps }: AppProps) {

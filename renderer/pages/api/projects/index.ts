@@ -11,27 +11,30 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     switch (method) {
         case 'GET':
-            let projects;
-
-            // If userId is provided, filter projects by that user
-            if (userId) {
-                // Assuming firebaseService has a method to fetch projects by userId
-                projects = await firebaseService.fetchProjects();
-                // Filter the projects server-side if the service doesn't have a dedicated method
-                projects = projects.filter(project => project.userId === userId);
-            } else {
-                // Fetch all projects if no userId filter is provided
-                projects = await firebaseService.fetchProjects();
+            try {
+                // Use the updated fetchProjects method that now accepts userId as a parameter
+                const projects = await firebaseService.fetchProjects(userId as string);
+                return res.status(200).json({ message: 'Projects fetched successfully', data: projects });
+            } catch (error) {
+                console.error('Error fetching projects:', error);
+                throw new APIError(`Failed to fetch projects: ${error.message}`, 500);
             }
 
-            return res.status(200).json({ message: 'Projects fetched successfully', data: projects });
-
         case 'POST':
+            try {
+                // Ensure userId is provided in the request body
+                if (!req.body.userId) {
+                    throw new APIError('userId is required', 400);
+                }
 
-            await msSQLService.testConnection(req.body.sqlServerViewModels[0].sqlConfig, req.body.sqlServerViewModels[0].sqlConfig.table);
+                await msSQLService.testConnection(req.body.sqlServerViewModels[0].sqlConfig, req.body.sqlServerViewModels[0].sqlConfig.table);
 
-            const project = await firebaseService.addProject(req.body);
-            return res.status(201).json({ message: 'Project created successfully', data: project });
+                const project = await firebaseService.addProject(req.body);
+                return res.status(201).json({ message: 'Project created successfully', data: project });
+            } catch (error) {
+                console.error('Error creating project:', error);
+                throw new APIError(`Failed to create project: ${error.message}`, error.status || 500);
+            }
 
         default:
             // Instead of manually handling this, throw an APIError for method not allowed

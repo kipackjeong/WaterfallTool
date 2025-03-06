@@ -19,7 +19,7 @@ import { motion } from 'framer-motion';
 import LoadingSpinner from './common/LoadingSpinner';
 import { ChevronUpIcon, ChevronDownIcon } from '@chakra-ui/icons';
 import { getDarkestThemeColor, getTableBorderColor } from '../lib/themes/theme';
-import { toDollar } from '../lib/helpers/numericHelper';
+import { toDollar } from '../lib/utils/numericHelper';
 import { MappingsStoreProvider } from '@/lib/states/mappingsState';
 
 const colorScheme = 'blue';

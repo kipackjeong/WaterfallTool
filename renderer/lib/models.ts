@@ -4,7 +4,7 @@ export type ProjectViewModel = {
     id?: string;
     userId: string;
     name: string;
-    sqlServerViewModels: SqlServerViewModel[];
+    sqlServers: SqlServerViewModel[];
 };
 
 export type ProjectDataModel = {
@@ -72,5 +72,6 @@ export type User = {
     createdAt?: string;
     /** Timestamp when the user profile was last updated */
     updatedAt?: string;
+    customToken?: string;
     _duplicate?: boolean;
 }

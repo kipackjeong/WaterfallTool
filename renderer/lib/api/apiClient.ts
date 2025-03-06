@@ -1,5 +1,5 @@
 import axios, { AxiosRequestConfig } from 'axios';
-import { toastEvents } from '../helpers/toastEvents';
+import { toastEvents } from '../utils/toastEvents';
 
 /**
  * Axios instance for making API requests
@@ -32,7 +32,7 @@ console.log('Window has electronAPI?', typeof window !== 'undefined' && !!window
 
 // Create the axios instance for browser environment
 const axiosInstance = axios.create({
-    baseURL: '/api',
+    baseURL: 'http://localhost:3001',
     headers: {
         'Content-Type': 'application/json',
     },
@@ -42,7 +42,7 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.response.use(
     (res) => {
         console.log(`[apiClient] Response from ${res.config.method?.toUpperCase()} ${res.config.url}:`, res);
-        return res.data;
+        return res.data.data;
     },
     (err) => {
         console.error(`[apiClient] Error:`, err);
@@ -54,22 +54,22 @@ axiosInstance.interceptors.response.use(
 
 // Create a unified API client that works in both browser and Electron
 const apiClient = {
-    get: async (url: string, config?: AxiosRequestConfig) => {
+    get: async (url: string, config?: AxiosRequestConfig): Promise<any> => {
         console.log(`[apiClient] Request GET ${url}`);
         return axiosInstance.get(url, config);
     },
 
-    post: async (url: string, data?: any, config?: AxiosRequestConfig) => {
+    post: async (url: string, data?: any, config?: AxiosRequestConfig): Promise<any> => {
         console.log(`[apiClient] Request POST ${url}`);
         return axiosInstance.post(url, data, config);
     },
 
-    put: async (url: string, data?: any, config?: AxiosRequestConfig) => {
+    put: async (url: string, data?: any, config?: AxiosRequestConfig): Promise<any> => {
         console.log(`[apiClient] Request PUT ${url}`);
         return axiosInstance.put(url, data, config);
     },
 
-    delete: async (url: string, config?: AxiosRequestConfig) => {
+    delete: async (url: string, config?: AxiosRequestConfig): Promise<any> => {
         console.log(`[apiClient] Request DELETE ${url}`);
         return axiosInstance.delete(url, config);
     },

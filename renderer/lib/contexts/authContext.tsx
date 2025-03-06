@@ -4,13 +4,14 @@ import { User } from '../models';
 import CryptoJS from 'crypto-js';
 import { authService } from '../services/authService';
 import { GOOGLE_CLIENT_ID } from '../config/auth';
+import { getAuth, signInWithCustomToken, signInWithEmailAndPassword } from "firebase/auth";
 
 // Define the shape of our context
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<User | null>;
-  register: (email: string, password: string, displayName?: string) => Promise<User | null>;
+  register: (email: string, password: string, firstName?: string, lastName?: string) => Promise<User | null>;
   logout: () => void;
   isAuthenticated: boolean;
   socialLogin: (provider: 'google' | 'apple') => Promise<User | null>;
@@ -71,12 +72,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         password: encryptedPassword
       });
-      const user = response.data;
 
+      const { user, token } = response;
       // Validate the response
       if (!user || !user.id || !user.email) {
         throw new Error('Invalid response from server');
       }
+      user.customToken = token;
 
       // Save user to local storage
       localStorage.setItem('waterfall_user', JSON.stringify(user));
@@ -100,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Register function using apiService
-  const register = async (email: string, password: string, displayName?: string) => {
+  const register = async (email: string, password: string, firstName?: string, lastName?: string) => {
     try {
       setLoading(true);
 
@@ -124,13 +126,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userPayload = {
         email,
         password: encryptedPassword,
-        displayName: displayName || email.split('@')[0],
-        createdAt: new Date().toISOString()
+        firstName: firstName || '',
+        lastName: lastName || '',
       };
 
       // Call the register API endpoint
       const response = await apiClient.post('/auth/register', userPayload);
-      const user = response.data;
+      console.debug('authContext:response', response.user);
+      const user = response.user;
 
       // Validate the response
       if (!user || !user.id || !user.email) {

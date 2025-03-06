@@ -12,20 +12,30 @@ LAPTOP-Q87BCMTU
   Get-Process -Id (Get-NetTCPConnection -LocalPort 8888).OwningProcess | Stop-Process
   ```
 
+### Get firebase JWT token
+in server root run `node generate-token.js`
+
+### Troubleshoot
+- ERROR : POST /auth/register - 500: "There is no configuration corresponding to the provided identifier."
+  - Check requested Authentication is enabled in firebase console.
+
 ## Daily Tasks/Logs
+
 ### 2025-02-26
 
-- [ ] TODO: create mappingsState store to be per instanceview scoped.
 - [ ] TODO: implement populate menu button
 - [ ] TODO: implement list waterfall cohorts button
-- [ ] TODO: local db connection keeps failing. Need to figure out why.
+- [ ] TODO: local db connection keeps failing. Need to figure out why...
 
 
 - [ ] TODO: enable deleting the project view.
-- [ ] TODO: need to make the project view to be cached so it lasts forever.
-- [ ] TODO: MappingView > WaterfallCell: implement the logic to update the waterfall value
-- [ ] TODO: implement loading
 
+- [ ] TODO: MappingView > WaterfallCell: implement the logic to update the waterfall value
+
+- [x] TODO: need to make the project views for sidebar to be cached so it lasts forever.
+  - handled with fetching data from API server
+- [x] TODO: implement loading
+- [x] TODO: create mappingsState store to be per instanceview scoped.
 - [x] TODO: implement populating counts in the Waterfall Cohorts table list in the Main page of InstanceView.
 
 

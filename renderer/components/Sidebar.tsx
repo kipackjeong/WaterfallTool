@@ -118,7 +118,7 @@ const Sidebar = () => {
                 setIsPolling(false);
             }
         }
-    }, [user, initProjects, toast]);
+    }, [user]);
 
     // Function to start polling
     const startPolling = useCallback(() => {
@@ -164,7 +164,7 @@ const Sidebar = () => {
         const initializeExpandedDatabases = () => {
             const initialExpanded = {};
             projectsArrState.forEach(project => {
-                project.sqlServerViewModels?.forEach(sqlServerInfo => {
+                project.sqlServers?.forEach(sqlServerInfo => {
                     sqlServerInfo.databases.forEach(databaseInfo => {
                         initialExpanded[databaseInfo.name] = true;
                     });
@@ -186,7 +186,7 @@ const Sidebar = () => {
     };
     return (
         <>
-            <DatabaseConnectionForm isOpen={showDatabaseForm} />
+            <DatabaseConnectionForm isOpen={showDatabaseForm} onSuccess={() => fetchProjects(false)} />
             <MotionBox
                 position="relative"
                 height="100vh"
@@ -291,7 +291,7 @@ const Sidebar = () => {
                                         <Flex key={index} direction="column" padding="8px 8px">
                                             <Text>{project?.name}</Text>
                                             <Flex gap={3} direction="column" key={index}>
-                                                {project?.sqlServerViewModels?.map((sqlServerInfo, index) => (
+                                                {project?.sqlServers?.map((sqlServerInfo, index) => (
                                                     <ServerItem
                                                         key={index}
                                                         project={project}

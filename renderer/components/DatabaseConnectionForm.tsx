@@ -21,8 +21,9 @@ import { useAuth } from "@/lib/contexts/authContext"
 
 interface DatabaseConnectionFormProps {
     isOpen: boolean
+    onSuccess: () => void
 }
-function DatabaseConnectionForm({ isOpen }: DatabaseConnectionFormProps) {
+function DatabaseConnectionForm({ isOpen, onSuccess }: DatabaseConnectionFormProps) {
     const { projectsArrState, addProject } = useProjectStore(state => state)
     const { user } = useAuth()
     const [projectName, setProjectName] = useState("sample")
@@ -47,7 +48,7 @@ function DatabaseConnectionForm({ isOpen }: DatabaseConnectionFormProps) {
             const projectPayload: ProjectViewModel = {
                 userId: user.id,
                 name: projectName,
-                sqlServerViewModels: [{
+                sqlServers: [{
                     isRemote: connectionType == 'remote',
                     name: serverName,
                     databases: [{
@@ -72,7 +73,9 @@ function DatabaseConnectionForm({ isOpen }: DatabaseConnectionFormProps) {
                 }]
             }
 
-            addProject(projectPayload);
+            await addProject(projectPayload);
+
+            onSuccess();
         } catch (err) {
             toast({
                 title: 'Error',

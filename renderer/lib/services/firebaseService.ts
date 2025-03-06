@@ -22,10 +22,24 @@ const db = getFirestore(app);
 
 export const firebaseService = {
   //// Projects ////
-  async fetchProjects() {
-    const querySnapshot = await getDocs(collection(db, 'projects'));
-    const projects = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    return projects;
+  async fetchProjects(userId: string | null = null) {
+    try {
+      let projectsQuery;
+
+      // If userId is provided, only fetch projects for that user
+      if (userId) {
+        projectsQuery = query(collection(db, 'projects'), where('userId', '==', userId));
+      } else {
+        projectsQuery = collection(db, 'projects');
+      }
+
+      const querySnapshot = await getDocs(projectsQuery);
+      const projects = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      return projects;
+    } catch (err) {
+      console.error('Error fetching projects:', err);
+      throw err;
+    }
   },
 
   async addProject(projectData) {
@@ -79,15 +93,33 @@ export const firebaseService = {
     }
   },
 
-  async updateProject(id, updateData) {
+  async updateProject(id, updateData, userId: string | null = null) {
     console.log('[firebaseService] updateProject', id, updateData)
+
+    // If userId is provided, verify the project belongs to the user before updating
+    if (userId) {
+      const project = await this.fetchProjectById(id);
+      if (!project || project.userId !== userId) {
+        throw new Error('Unauthorized: Project does not belong to the specified user');
+      }
+    }
+
     const projectDoc = doc(db, 'projects', id);
     await updateDoc(projectDoc, updateData);
     return { id, ...updateData };
   },
 
-  async deleteProject(id) {
+  async deleteProject(id, userId: string | null = null) {
     console.log('[firebaseService] deleteProject', id)
+
+    // If userId is provided, verify the project belongs to the user before deleting
+    if (userId) {
+      const project = await this.fetchProjectById(id);
+      if (!project || project.userId !== userId) {
+        throw new Error('Unauthorized: Project does not belong to the specified user');
+      }
+    }
+
     const projectDoc = doc(db, 'projects', id);
     await deleteDoc(projectDoc);
     return { id };
@@ -225,16 +257,19 @@ const deepMergeProjects = (existingProject: ProjectDataModel, newProject: Projec
   // Create a base merged project with primitive properties
   const merged: ProjectDataModel = { ...existingProject, ...newProject };
 
+  // Ensure userId consistency - prioritize existing userId if available
+  merged.userId = existingProject.userId || newProject.userId;
+
   // If the new project has SQL server models, we need to merge them with existing ones
-  if (newProject.sqlServerViewModels && existingProject.sqlServerViewModels) {
+  if (newProject.sqlServers && existingProject.sqlServers) {
     // Create a map of existing servers by name for easy lookup
-    const existingServersMap = existingProject.sqlServerViewModels.reduce((map, server) => {
+    const existingServersMap = existingProject.sqlServers.reduce((map, server) => {
       map[server.name] = server;
       return map;
     }, {});
 
     // Create merged SQL server models array
-    merged.sqlServerViewModels = newProject.sqlServerViewModels.map(newServer => {
+    merged.sqlServers = newProject.sqlServers.map(newServer => {
       const existingServer = existingServersMap[newServer.name];
 
       // If this server doesn't exist in the existing project, use the new server as is
@@ -296,9 +331,9 @@ const deepMergeProjects = (existingProject: ProjectDataModel, newProject: Projec
     });
 
     // Also include any servers from the existing project that aren't in the new project
-    const newServerNames = new Set(newProject.sqlServerViewModels.map(s => s.name));
-    const missingServers = existingProject.sqlServerViewModels.filter(server => !newServerNames.has(server.name));
-    merged.sqlServerViewModels = [...merged.sqlServerViewModels, ...missingServers];
+    const newServerNames = new Set(newProject.sqlServers.map(s => s.name));
+    const missingServers = existingProject.sqlServers.filter(server => !newServerNames.has(server.name));
+    merged.sqlServers = [...merged.sqlServers, ...missingServers];
   }
 
   // Update the timestamps

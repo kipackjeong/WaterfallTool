@@ -5,6 +5,7 @@ import { devtools } from 'zustand/middleware';
 import { ProjectViewModel, User } from '../models';
 import apiClient from '../api/apiClient';
 import * as _ from 'lodash';
+import { getAuthHeaders, getCurrentUser } from '../utils/authUtils';
 
 export type ProjectsState = {
   projectsArrState: ProjectViewModel[];
@@ -37,38 +38,82 @@ export const createProjectStore = (
           ...initState,
           initProjects: async (user: User) => {
             try {
-              const res = await apiClient.get('projects', { params: { userId: user.id } });
-              const projectsArrState = res.data;
+              // Get authentication headers with Firebase ID token
+              const authConfig = await getAuthHeaders(user);
+
+              // Make the API request with auth headers and userId param
+              const res = await apiClient.get('projects/by-user', {
+                ...authConfig,
+                // Also pass the userId as a query parameter for backend filtering
+                params: {
+                  userId: user.id
+                }
+              });
+
+              const projectsArrState = res;
               set(prevState => {
                 const newState = _.cloneDeep(prevState);
                 newState.projectsArrState = projectsArrState ?? [];
                 return newState;
               });
-            } catch (error) {
-              console.error('Error initializing projects:', error);
+            } catch (err) {
+              console.error('Error initializing projects:', err);
             }
           },
           addProject: async (newProject: ProjectViewModel) => {
-            const res = await apiClient.post('projects', newProject);
-            if (!res) return;
-            const createdProject = res.data;
-            set((prevState) => {
-              const newState = _.cloneDeep(prevState);
-              newState.projectsArrState = [...prevState.projectsArrState, createdProject];
-              return newState;
-            });
-            // Sync the complete data from the server
-            await get().downSyncProject(createdProject.id);
-          },
-          deleteProject: (projectId: string) => {
-            set((prevState: ProjectsState) => {
-              const newState = _.cloneDeep(prevState);
-              newState.projectsArrState = prevState.projectsArrState.filter(project => project.id !== projectId);
-              apiClient.delete(`projects/${projectId}`).then((res) => {
-                console.debug(res.data.data);
+            try {
+              // Get the current user from localStorage
+              const user = getCurrentUser();
+              if (!user) {
+                console.error('No user found in localStorage');
+                return;
+              }
+
+              // Get authentication headers
+              const authConfig = await getAuthHeaders(user);
+
+              // Make authenticated API call
+              const res = await apiClient.post('projects', newProject, authConfig);
+              if (!res) return;
+
+              const createdProject = res;
+
+              set((prevState) => {
+                const newState = _.cloneDeep(prevState);
+                newState.projectsArrState.push(newProject);
+                return newState;
               });
-              return newState;
-            });
+
+              // // Sync the complete data from the server
+              // await get().downSyncProject(createdProject.id);
+            } catch (err) {
+              console.error('Error adding project:', err);
+            }
+          },
+          deleteProject: async (projectId: string) => {
+            try {
+              set((prevState: ProjectsState) => {
+                const newState = _.cloneDeep(prevState);
+                newState.projectsArrState = prevState.projectsArrState.filter(project => project.id !== projectId);
+                return newState;
+              });
+
+              // Get the current user from localStorage
+              const user = getCurrentUser();
+              if (!user) {
+                console.error('No user found in localStorage');
+                return;
+              }
+
+              // Get authentication headers
+              const authConfig = await getAuthHeaders(user);
+
+              // Make authenticated API call
+              const res = await apiClient.delete(`projects/${projectId}`, authConfig);
+              console.debug('Project deleted:', res.data);
+            } catch (err) {
+              console.error('Error deleting project:', err);
+            }
           },
           deleteSqlServer: (projectId: string, serverName: string) => {
             set((prevState: ProjectsState) => {
@@ -76,7 +121,7 @@ export const createProjectStore = (
               newState.projectsArrState = prevState.projectsArrState.map(project => {
                 if (project.id === projectId) {
                   const updatedProject = { ...project };
-                  updatedProject.sqlServerViewModels = project.sqlServerViewModels.filter(sqlServer => sqlServer.name !== serverName);
+                  updatedProject.sqlServers = project.sqlServers.filter(sqlServer => sqlServer.name !== serverName);
                   return updatedProject;
                 } else {
                   return project;
@@ -92,7 +137,7 @@ export const createProjectStore = (
                 if (project.id === projectId) {
                   const updatedProject = {
                     ..._.cloneDeep(project),
-                    sqlServerViewModels: project.sqlServerViewModels.map(sqlServer => {
+                    sqlServers: project.sqlServers.map(sqlServer => {
                       if (sqlServer.name === serverName) {
                         return { ...sqlServer, databases: sqlServer.databases.filter(database => database.name !== databaseName) };
                       } else {
@@ -137,7 +182,7 @@ export const createProjectStore = (
                 if (project.id === projectId) {
                   const updatedProject = {
                     ...project,
-                    sqlServerViewModels: project.sqlServerViewModels.map(sqlServer => {
+                    sqlServers: project.sqlServers.map(sqlServer => {
                       if (sqlServer.name === serverName) {
                         return {
                           ...sqlServer, databases: sqlServer.databases.map(database => {
@@ -164,21 +209,52 @@ export const createProjectStore = (
             })
           },
           upSyncProject: async (projectId: string, updatedProject: ProjectViewModel) => {
-            await apiClient.put(`projects/${projectId}`, updatedProject);
+            try {
+              // Get the current user from localStorage
+              const user = getCurrentUser();
+              if (!user) {
+                console.error('No user found in localStorage');
+                return;
+              }
+
+              // Get authentication headers
+              const authConfig = await getAuthHeaders(user);
+
+              // Make authenticated API call
+              await apiClient.put(`projects/${projectId}`, updatedProject, authConfig);
+            } catch (err) {
+              console.error('Error updating project:', err);
+            }
           },
           downSyncProject: async (projectId: string): Promise<void> => {
-            const res = await apiClient.get(`projects/${projectId}`);
-            set((prevState) => {
-              const newState = _.cloneDeep(prevState);
-              newState.projectsArrState = prevState.projectsArrState.map(project => {
-                if (project.id === projectId) {
-                  return res.data;
-                } else {
-                  return project;
-                }
+            try {
+              // Get the current user from localStorage
+              const user = getCurrentUser();
+              if (!user) {
+                console.error('No user found in localStorage');
+                return;
+              }
+
+              // Get authentication headers
+              const authConfig = await getAuthHeaders(user);
+
+              // Make authenticated API call
+              const res = await apiClient.get(`projects/${projectId}`, authConfig);
+
+              set((prevState) => {
+                const newState = _.cloneDeep(prevState);
+                newState.projectsArrState = prevState.projectsArrState.map(project => {
+                  if (project.id === projectId) {
+                    return res.data;
+                  } else {
+                    return project;
+                  }
+                });
+                return newState;
               });
-              return newState;
-            })
+            } catch (err) {
+              console.error('Error syncing project from server:', err);
+            }
           }
         }
       },
@@ -192,7 +268,7 @@ const checkIfOnlyTable = (project, serverName, databaseName, tableName) => {
   // Count total tables in the project excluding the one we're deleting
   let tableCount = 0;
 
-  for (const server of project.sqlServerViewModels) {
+  for (const server of project.sqlServers) {
     for (const database of server.databases) {
       for (const table of database.tables) {
         // Skip counting the table we're about to delete

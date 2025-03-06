@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     case 'PUT':
       try {
         // Update an existing project
-        const updatedProject = await firebaseService.updateProject(id as string, req.body);
+        const updatedProject = await firebaseService.updateProject(id as string, req.body, userId as string);
         return res.status(200).json({ message: 'Project updated successfully', data: updatedProject });
       } catch (error) {
         console.error(`Error updating project ${id}:`, error);
@@ -34,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     case 'DELETE':
       try {
         // Delete a project
-        await firebaseService.deleteProject(id as string);
+        await firebaseService.deleteProject(id as string, userId as string);
         return res.status(200).json({ message: 'Project deleted successfully', data: { id } });
       } catch (error) {
         console.error(`Error deleting project ${id}:`, error);

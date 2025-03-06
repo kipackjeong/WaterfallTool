@@ -33,7 +33,7 @@ import { User } from 'next-auth';
 interface LoginModalProps {
   isOpen: boolean;
   onLogin?: (email: string, password: string) => Promise<User | null>;
-  onRegister?: (email: string, password: string, displayName?: string) => Promise<User | null>;
+  onRegister?: (email: string, password: string, firstName?: string, lastName?: string) => Promise<User | null>;
   onSocialLogin?: (provider: 'google' | 'apple') => Promise<User | null>;
   preventClose?: boolean;
 }
@@ -49,6 +49,8 @@ const LoginModal = ({
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { colorMode } = useColorMode();
@@ -92,7 +94,7 @@ const LoginModal = ({
 
       if (isRegistering && onRegister) {
         // Call register function
-        result = await onRegister(email, password, displayName);
+        result = await onRegister(email, password, firstName, lastName);
       } else if (onLogin) {
         // Call login function
         result = await onLogin(email, password);
@@ -108,6 +110,8 @@ const LoginModal = ({
       setEmail('');
       setPassword('');
       setDisplayName('');
+      setFirstName('');
+      setLastName('');
 
       // Close modal on success
       onClose();
@@ -252,20 +256,36 @@ const LoginModal = ({
                 </FormControl>
 
                 {isRegistering && (
-                  <FormControl id="displayName" isRequired>
-                    <FormLabel fontSize="sm">Display Name</FormLabel>
-                    <Input
-                      type="text"
-                      placeholder="Your Name"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      borderColor={borderColor}
-                      _hover={{ borderColor: 'blue.300' }}
-                      _focus={{ borderColor: 'blue.500', boxShadow: 'none' }}
-                      bg={colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'white'}
-                      color={textColor}
-                    />
-                  </FormControl>
+                  <>
+                    <FormControl id="firstName" isRequired>
+                      <FormLabel fontSize="sm">First Name</FormLabel>
+                      <Input
+                        type="text"
+                        placeholder="Your First Name"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        borderColor={borderColor}
+                        _hover={{ borderColor: 'blue.300' }}
+                        _focus={{ borderColor: 'blue.500', boxShadow: 'none' }}
+                        bg={colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'white'}
+                        color={textColor}
+                      />
+                    </FormControl>
+                    <FormControl id="lastName" isRequired>
+                      <FormLabel fontSize="sm">Last Name</FormLabel>
+                      <Input
+                        type="text"
+                        placeholder="Your Last Name"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        borderColor={borderColor}
+                        _hover={{ borderColor: 'blue.300' }}
+                        _focus={{ borderColor: 'blue.500', boxShadow: 'none' }}
+                        bg={colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'white'}
+                        color={textColor}
+                      />
+                    </FormControl>
+                  </>
                 )}
 
                 <FormControl id="password" isRequired>

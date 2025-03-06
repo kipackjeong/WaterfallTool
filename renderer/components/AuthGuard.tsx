@@ -26,10 +26,10 @@ const AuthGuard = ({ children }: AuthGuardProps) => {
               setLoginError(error.message || 'Authentication failed');
             }
           }}
-          onRegister={async (email, password, displayName) => {
+          onRegister={async (email, password, firstName, lastName) => {
             try {
               setLoginError(null);
-              return await register(email, password, displayName);
+              return await register(email, password, firstName, lastName);
             } catch (error) {
               setLoginError(error.message || 'Registration failed');
             }
