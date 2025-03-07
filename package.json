@@ -14,14 +14,15 @@
     "build": "next build renderer",
     "start": "next start renderer",
     "dev:desktop": "yarn build:desktop && electron .",
-    "build:desktop": "yarn clean && yarn build:electron",
+    "build:desktop": "yarn clean && yarn build:electron && yarn build:server",
     "dist": "yarn build:all && electron-builder",
     "clean": "rimraf dist renderer/.next main/*.js main/**/*.js server/dist",
     "build:main": "tsc -p main",
     "build:renderer": "cd renderer && next build",
     "build:electron": "yarn build:renderer && yarn build:main",
     "build:server": "cd server && yarn build",
-    "build:all": "yarn build:server && yarn build:electron"
+    "build:all": "yarn build:server && yarn build:electron",
+    "prod:server": "cd server && yarn clean && yarn build && yarn start:prod"
   },
   "dependencies": {
     "@chakra-ui/icons": "^2.1.1",
