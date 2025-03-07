@@ -34,7 +34,7 @@ export const firebaseService = {
       }
 
       const querySnapshot = await getDocs(projectsQuery);
-      const projects = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const projects = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
       return projects;
     } catch (err) {
       console.error('Error fetching projects:', err);
