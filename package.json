@@ -14,14 +14,19 @@
     "build": "next build renderer",
     "export": "next build renderer && next export renderer -o renderer/out",
     "start": "next start renderer",
-    "dev:desktop": "npm run build:desktop && electron .",
-    "build:desktop": "npm run clean && npm run build:electron",
-    "dist": "npm run build:desktop && electron-builder",
+    "dev:desktop": "yarn build:desktop && electron .",
+    "build:desktop": "yarn clean && yarn build:electron",
+    "dist": "yarn build:all && electron-builder",
     "postinstall": "electron-builder install-app-deps",
-    "clean": "rimraf dist renderer/.next main/*.js main/**/*.js",
+    "clean": "rimraf dist renderer/.next main/*.js main/**/*.js renderer/out",
     "build:main": "tsc -p main",
-    "build:renderer": "next build renderer && next export renderer -o renderer/out",
-    "build:electron": "npm run build:renderer && npm run build:main",
+    "build:renderer": "cd renderer && next build && next export -o out",
+    "build:electron": "yarn build:renderer && yarn build:main",
+    "build:server": "cd server && yarn build",
+    "build:all": "yarn build:server && yarn build:electron",
+    "dev:server": "cd server && yarn start:dev",
+    "dev:all": "concurrently \"yarn dev:server\" \"yarn dev:desktop\"",
+    "build:full": "node build.js",
     "lint": "next lint renderer",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -66,6 +71,7 @@
     "@types/node": "^18.11.18",
     "@types/react": "18.0.27",
     "@types/react-dom": "18.0.10",
+    "concurrently": "^9.1.2",
     "electron": "^21.3.3",
     "electron-builder": "^23.6.0",
     "eslint": "8.32.0",
@@ -76,43 +82,5 @@
     "react-dom": "^18.3.1",
     "ts-jest": "^29.2.6",
     "typescript": "^5.8.2"
-  },
-  "build": {
-    "appId": "com.waterfalltool",
-    "productName": "Waterfall Tool",
-    "files": [
-      "main/**/*.js",
-      "renderer/.next/**/*",
-      "renderer/out/**/*",
-      "renderer/public/**/*",
-      "node_modules/**/*"
-    ],
-    "mac": {
-      "category": "public.app-category.productivity",
-      "target": [
-        "dmg",
-        "zip"
-      ]
-    },
-    "win": {
-      "target": [
-        "nsis",
-        "zip",
-        "portable"
-      ]
-    },
-    "linux": {
-      "target": [
-        "AppImage",
-        "deb",
-        "rpm",
-        "tar.gz",
-        "zip"
-      ]
-    },
-    "directories": {
-      "buildResources": "build",
-      "output": "dist"
-    }
   }
 }

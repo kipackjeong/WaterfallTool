@@ -1,12 +1,53 @@
-appId: com.praveenp.memrefinder
-productName: MemReFinder: Chat with your Data
-copyright: Copyright © 2023 Praveen Palanisamy
+appId: com.kj.waterfalltool
+productName: WaterfallTool
+copyright: Copyright © 2023 KJ
 directories:
   output: dist
   buildResources: resources
 files:
   - from: .
     filter:
+      - main/**/*.js
+      - renderer/.next/**/*
+      - renderer/out/**/*
+      - renderer/public/**/*
+      - node_modules/**/*
       - package.json
       - app
+  # Use specific paths for server files to ensure proper structure
+  - from: server/dist
+    to: server/dist
+  - from: server/node_modules
+    to: server/node_modules
+  - "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}"
+  - "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
+
+asar: true
+
+asarUnpack:
+  - "**/*.{node,dll}"
+  - "**/node_modules/sharp/**/*"
+  - "server/dist/**/*"
+  - "server/node_modules/**/*"
+
 publish: null
+
+win:
+  icon: resources/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+mac:
+  icon: resources/icon.icns
+  target:
+    - target: dmg
+    - target: zip
+  darkModeSupport: true
+
+linux:
+  icon: resources/icons
+  target:
+    - target: AppImage
+  category: Development
