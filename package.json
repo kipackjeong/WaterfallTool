@@ -20,7 +20,7 @@
     "postinstall": "electron-builder install-app-deps",
     "clean": "rimraf dist renderer/.next main/*.js main/**/*.js renderer/out",
     "build:main": "tsc -p main",
-    "build:renderer": "cd renderer && next build && next export -o out",
+    "build:renderer": "cd renderer && next build",
     "build:electron": "yarn build:renderer && yarn build:main",
     "build:server": "cd server && yarn build",
     "build:all": "yarn build:server && yarn build:electron",

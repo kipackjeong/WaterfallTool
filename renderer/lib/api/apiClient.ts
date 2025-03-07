@@ -32,7 +32,7 @@ console.log('Window has electronAPI?', typeof window !== 'undefined' && !!window
 
 // Create the axios instance for browser environment
 const axiosInstance = axios.create({
-    baseURL: 'http://localhost:3001',
+    baseURL: 'http://localhost:3002',
     headers: {
         'Content-Type': 'application/json',
     },
