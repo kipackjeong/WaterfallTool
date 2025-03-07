@@ -14,12 +14,12 @@ import {
   Icon,
   useColorMode,
 } from '@chakra-ui/react';
-import { useInstanceStore } from '../lib/states/instanceState';
+import { useInstanceStore } from '../../lib/states/instanceState';
 import { motion } from 'framer-motion';
-import LoadingSpinner from './common/LoadingSpinner';
+import LoadingSpinner from '../common/LoadingSpinner';
 import { ChevronUpIcon, ChevronDownIcon } from '@chakra-ui/icons';
-import { getDarkestThemeColor, getTableBorderColor } from '../lib/themes/theme';
-import { toDollar } from '../lib/utils/numericHelper';
+import { getDarkestThemeColor, getTableBorderColor } from '../../lib/themes/theme';
+import { toDollar } from '../../lib/utils/numericHelper';
 import { MappingsStoreProvider } from '@/lib/states/mappingsState';
 
 const colorScheme = 'blue';
@@ -63,6 +63,8 @@ const selectionStyles = {
 
 const InstanceView = () => {
   const { instanceViewState } = useInstanceStore((state) => state);
+  if (!instanceViewState) return null;
+
   // Using the waterfallCohortsTableData from instanceViewState directly
   const [loading, setLoading] = useState(true);
   const [isDrawerOpen, setIsDrawerOpen] = useState(true); // State for drawer control
@@ -147,8 +149,6 @@ const InstanceView = () => {
       </Table>
     );
   };
-
-
 
   return (
     <Flex width="100%" direction="column" position="relative">

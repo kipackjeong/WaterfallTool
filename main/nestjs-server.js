@@ -103,6 +103,7 @@ class NestJSServerManager {
      * @returns Promise that resolves when server is ready
      */
     async start() {
+        console.log(`Node.js version: ${process.versions.node}`);
         if (this.serverProcess) {
             console.log('NestJS server is already running');
             return;

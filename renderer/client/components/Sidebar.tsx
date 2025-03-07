@@ -1,16 +1,16 @@
 import { Box, Flex, Icon, IconButton, Text, useColorMode, Tooltip, Divider, Spinner, VStack, Button, useToast } from "@chakra-ui/react";
 import { motion } from "framer-motion";
-import ExpandableList from "../lib/ui/ExpandableList";
+import ExpandableList from "../../lib/ui/ExpandableList";
 import { IoClose, IoRefresh } from "react-icons/io5";
 import { ElementType, useCallback, useEffect, useState, useRef } from "react";
 import { GoDatabase, GoServer } from "react-icons/go";
 import { HiOutlineArrowTurnDownRight } from "react-icons/hi2";
-import { useProjectStore } from "../lib/states/projectsState";
+import { useProjectStore } from "../../lib/states/projectsState";
 import DatabaseConnectionForm from "./DatabaseConnectionForm";
-import { useInstanceStore } from "../lib/states/instanceState";
+import { useInstanceStore } from "../../lib/states/instanceState";
 import { DarkModeSwitch } from "./DarkModeSwitch";
 import { FaPlus, FaChevronLeft, FaChevronRight, FaTable, FaSignOutAlt } from "react-icons/fa";
-import { useAuth } from "../lib/contexts/authContext";
+import { useAuth } from "../../lib/contexts/authContext";
 
 const MotionBox = motion(Box); // Create a motion-enabled Box
 

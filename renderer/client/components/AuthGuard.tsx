@@ -1,6 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { Box, useDisclosure } from '@chakra-ui/react';
-import { useAuth } from '../lib/contexts/authContext';
+import { useAuth } from '../../lib/contexts/authContext';
 import LoginModal from './LoginModal';
 
 interface AuthGuardProps {

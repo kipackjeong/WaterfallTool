@@ -1,5 +1,4 @@
 import NextDocument, { Html, Head, Main, NextScript } from 'next/document'
-import { ColorModeScript } from '@chakra-ui/react'
 
 export default class Document extends NextDocument {
   render() {
@@ -8,10 +7,10 @@ export default class Document extends NextDocument {
         <Head>
           <meta charSet="utf-8" />
           <meta httpEquiv="Content-Type" content="text/html; charset=utf-8" />
+          <title>Waterfall Tool</title>
         </Head>
-        <body>
+        <body style={{ width: '100vw', height: '100vh' }}>
           {/* Make Color mode to persists when you refresh the page. */}
-          <ColorModeScript />
           <Main />
           <NextScript />
         </body>

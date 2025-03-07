@@ -3,13 +3,13 @@ import {
     Flex, Icon, IconButton, Tab, Table, TabList, TabPanel, TabPanels, Tabs, Tbody, Td, Text, Th, Thead, Tooltip, Tr, useColorMode, useColorModeValue, useToast
 } from '@chakra-ui/react';
 import { FaDownload, FaSync, FaUpload } from 'react-icons/fa';
-import useExportToExcel from '../lib/hooks/useExportToExcel';
-import { MappingsViewModel } from '../lib/models';
+import useExportToExcel from '../../lib/hooks/useExportToExcel';
+import { MappingsViewModel } from '../../lib/models';
 import WaterfallInput from './WaterfallInput';
-import { getHeadTextColor, getTableBorderColor } from '../lib/themes/theme';
-import LoadingSpinner from './common/LoadingSpinner';
-import { toDollar } from '../lib/utils/numericHelper';
-import { useInstanceStore } from '../lib/states/instanceState';
+import { getHeadTextColor, getTableBorderColor } from '../../lib/themes/theme';
+import LoadingSpinner from '../common/LoadingSpinner';
+import { toDollar } from '../../lib/utils/numericHelper';
+import { useInstanceStore } from '../../lib/states/instanceState';
 import { useMappingsStore } from '@/lib/states/mappingsState';
 import _ from 'lodash';
 

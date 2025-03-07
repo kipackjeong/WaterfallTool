@@ -25,8 +25,8 @@ import {
 } from '@chakra-ui/react';
 import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaGoogle } from 'react-icons/fa';
 import { SiApple } from 'react-icons/si';
-import { authService } from '../lib/services/authService';
-import { GOOGLE_CLIENT_ID } from '../lib/config/auth';
+import { authService } from '../../lib/services/authService';
+import { GOOGLE_CLIENT_ID } from '../../lib/config/auth';
 import { User } from 'next-auth';
 
 // Types for the login modal props

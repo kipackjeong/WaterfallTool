@@ -14,7 +14,7 @@ import {
 } from "@chakra-ui/react"
 import { ElementType, useEffect, useState } from "react"
 import { FaTimes } from "react-icons/fa"
-import { useProjectStore } from "../lib/states/projectsState"
+import { useProjectStore } from "../../lib/states/projectsState"
 import TextInput from "./TextInput"
 import { ProjectViewModel } from "@/lib/models"
 import { useAuth } from "@/lib/contexts/authContext"
