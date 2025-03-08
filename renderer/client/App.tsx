@@ -6,8 +6,8 @@ import { InstanceStoreProvider } from '@/lib/states/instanceState'
 import { ProjectStoreProvider } from '@/lib/states/projectsState'
 import { toastEvents } from '@/lib/utils/toastEvents'
 import AuthGuard from './components/AuthGuard'
-import InstanceView from './components/InstanceView'
 import MainLayout from './layouts/MainLayout'
+import Main from './Main'
 
 export default function App() {
     const toast = useToast();
@@ -31,10 +31,8 @@ export default function App() {
                     <InstanceStoreProvider>
                         <AuthGuard>
                             <MainLayout>
-                                <Flex width="100%">
-                                    <ColorModeScript />
-                                    <InstanceView />
-                                </Flex>
+                                <ColorModeScript />
+                                <Main />
                             </MainLayout>
                         </AuthGuard>
                     </InstanceStoreProvider>

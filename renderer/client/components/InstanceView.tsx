@@ -21,9 +21,9 @@ import { ChevronUpIcon, ChevronDownIcon } from '@chakra-ui/icons';
 import { getDarkestThemeColor, getTableBorderColor } from '../../lib/themes/theme';
 import { toDollar } from '../../lib/utils/numericHelper';
 import { MappingsStoreProvider } from '@/lib/states/mappingsState';
+import MappingsView from './MappingsView';
 
 const colorScheme = 'blue';
-const MappingsView = lazy(() => import('./MappingsView'));
 
 // Shared styles
 const tableStyles = {
@@ -63,8 +63,6 @@ const selectionStyles = {
 
 const InstanceView = () => {
   const { instanceViewState } = useInstanceStore((state) => state);
-  if (!instanceViewState) return null;
-
   // Using the waterfallCohortsTableData from instanceViewState directly
   const [loading, setLoading] = useState(true);
   const [isDrawerOpen, setIsDrawerOpen] = useState(true); // State for drawer control
@@ -102,33 +100,37 @@ const InstanceView = () => {
     if (instanceViewState) fetchData();
   }, [instanceViewState]);
 
-  const renderCohortTable = () => (
-    <Table sx={tableStyles} flex={1}>
-      <Thead>
-        <Tr>
-          <Th sx={getHeaderStyles(tableBorderColor)}>Waterfall Cohort</Th>
-          <Th sx={getHeaderStyles(tableBorderColor)}># of Value</Th>
-          <Th sx={getHeaderStyles(tableBorderColor)}>Run</Th>
-          <Th sx={getHeaderStyles(tableBorderColor)}>Aggregate</Th>
-        </Tr>
-      </Thead>
-      <Tbody>
-        {instanceViewState.waterfallCohortsTableData?.map((cohort, index) => (
-          <CohortRow
-            key={index}
-            cohort={cohort}
-            borderColor={tableBorderColor}
-          />
-        ))}
-      </Tbody>
-    </Table>
-  );
+  const renderCohortTable = () => {
+    if (!instanceViewState) return null;
+    return (
+      <Table sx={tableStyles} flex={1}>
+        <Thead>
+          <Tr>
+            <Th sx={getHeaderStyles(tableBorderColor)}>Waterfall Cohort</Th>
+            <Th sx={getHeaderStyles(tableBorderColor)}># of Value</Th>
+            <Th sx={getHeaderStyles(tableBorderColor)}>Run</Th>
+            <Th sx={getHeaderStyles(tableBorderColor)}>Aggregate</Th>
+          </Tr>
+        </Thead>
+        <Tbody>
+          {instanceViewState.waterfallCohortsTableData?.map((cohort, index) => (
+            <CohortRow
+              key={index}
+              cohort={cohort}
+              borderColor={tableBorderColor}
+            />
+          ))}
+        </Tbody>
+      </Table>
+    );
+  }
 
   const renderNumericFieldsTable = () => {
     // if (loading || !instanceViewState?.numericTableData || instanceViewState.numericTableData.length === 0) {
     //   return <LoadingSpinner />;
     // }
 
+    if (!instanceViewState || loading) return <LoadingSpinner />;
     return (
       <Table sx={tableStyles}>
         <Thead>
@@ -149,12 +151,13 @@ const InstanceView = () => {
       </Table>
     );
   };
-
   return (
     <Flex width="100%" direction="column" position="relative">
-      {!instanceViewState || loading &&
-        <LoadingSpinner />
-      }
+      {/* {!instanceViewState || loading &&
+        <div style={{ width: "100vw", height: "100vh" }}>
+          <LoadingSpinner />
+        </div>
+      } */}
       {/* Pull-down Drawer (Blind-like animation) */}
       <motion.div
         className="motion.div"
@@ -233,7 +236,7 @@ const InstanceView = () => {
 
       <motion.div
         className="motion.div"
-        initial="closed" // Start with a small portion visible
+        initial="ope" // Start with a small portion visible
         animate={isDrawerOpen ? 'open' : 'closed'}
         variants={bottomPanelVariants}
         style={{
@@ -251,9 +254,7 @@ const InstanceView = () => {
         <Flex sx={{ width: "100%", height: "100%" }} direction="column" alignItems="center" justifyContent="center" p={4} gap={4}> {/* Increased padding to account for the visible drawer portion */}
           {/* Distribution line for grok */}
           <MappingsStoreProvider>
-            <Suspense fallback={<LoadingSpinner />}>
-              <MappingsView setLoading={setLoading} />
-            </Suspense>
+            <MappingsView />
           </MappingsStoreProvider>
         </Flex>
       </motion.div>

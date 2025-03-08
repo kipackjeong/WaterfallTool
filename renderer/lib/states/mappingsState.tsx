@@ -5,6 +5,7 @@ import { devtools } from 'zustand/middleware';
 import { InstanceViewModel, MappingsViewModel } from '../models';
 import apiClient from '../api/apiClient';
 import * as _ from 'lodash';
+import { getAuthHeaders } from '../utils/authUtils';
 
 //Zustand stuff
 export type MappingsArrState = {
@@ -12,12 +13,12 @@ export type MappingsArrState = {
 }
 
 export type MappingsActions = {
-  initMappingsArrState: (instanceViewState: InstanceViewModel) => Promise<void>
-  setMappingsArrState: (instanceViewState: InstanceViewModel) => Promise<void>
+  initMappingsArrState: (user, instanceViewState: InstanceViewModel) => Promise<void>
+  setMappingsArrState: (user, instanceViewState: InstanceViewModel) => Promise<void>
   addMapping: (newMapping: MappingsViewModel) => void
   modifyWaterfallGroup: (mappingIndex: number, rowIndex: number, newWaterfallGroup: string) => void
   upsyncMappings: () => Promise<void>
-  refreshMappingsArrState: (instanceViewState: InstanceViewModel) => Promise<void>
+  refreshMappingsArrState: (user, instanceViewState: InstanceViewModel) => Promise<void>
 }
 
 export type MappingsStore = MappingsArrState & MappingsActions
@@ -35,11 +36,11 @@ export const createMappingsStore = (
       (set, get) => {
         return {
           ...initState,
-          initMappingsArrState: async (instanceViewState: InstanceViewModel) => {
+          initMappingsArrState: async (user, instanceViewState: InstanceViewModel) => {
           },
 
-          setMappingsArrState: async (instanceViewState: InstanceViewModel) => {
-            const mappingsArrState = await _queryMappingsArr(instanceViewState);
+          setMappingsArrState: async (user, instanceViewState: InstanceViewModel) => {
+            const mappingsArrState = await _queryMappingsArr(user, instanceViewState);
             console.log('mappingsArrState:', mappingsArrState)
 
             set((prevState) => {
@@ -49,8 +50,8 @@ export const createMappingsStore = (
             })
           },
 
-          refreshMappingsArrState: async (instanceViewState: InstanceViewModel) => {
-            const mappingsArrState = await _queryMappingsArr(instanceViewState);
+          refreshMappingsArrState: async (user, instanceViewState: InstanceViewModel) => {
+            const mappingsArrState = await _queryMappingsArr(user, instanceViewState);
             console.log('mappingsArrState:', mappingsArrState)
 
             set((prevState) => {
@@ -113,7 +114,7 @@ export const createMappingsStore = (
     )
   )
 }
-async function _getMappingData(instanceViewState: InstanceViewModel, keyword: string): Promise<MappingsViewModel[]> {
+async function _getMappingData(user, instanceViewState: InstanceViewModel, keyword: string): Promise<MappingsViewModel[]> {
   const query =
     `
         DECLARE @sql NVARCHAR(MAX);
@@ -145,24 +146,27 @@ async function _getMappingData(instanceViewState: InstanceViewModel, keyword: st
         EXEC sp_executesql @sql;
       `
   try {
-    const data = (await apiClient.post('runQuery', {
-      server: instanceViewState.server,
-      database: instanceViewState.database,
-      table: instanceViewState.table,
-      user: instanceViewState.sqlConfig.user,
-      password: instanceViewState.sqlConfig.password,
+    const authConfig = await getAuthHeaders(user);
+    const data = (await apiClient.post('mssql/query', {
+      config: {
+        server: instanceViewState.server,
+        database: instanceViewState.database,
+        table: instanceViewState.table,
+        user: instanceViewState.sqlConfig.user,
+        password: instanceViewState.sqlConfig.password
+      },
       query
-    })).data;
+    }, authConfig));
 
     return data
   } catch (error) {
     console.error('Error running SQL query:', error);
   }
 }
-async function _queryMappingsArr(instanceViewState: InstanceViewModel): Promise<MappingsViewModel[]> {
+async function _queryMappingsArr(user, instanceViewState: InstanceViewModel): Promise<MappingsViewModel[]> {
   let mappingsArrState: MappingsViewModel[] = [];
   _.forEach(instanceViewState.waterfallCohortsTableData, async cohort => {
-    const mappingData = await _getMappingData(instanceViewState, cohort.waterfallCohortName);
+    const mappingData = await _getMappingData(user, instanceViewState, cohort.waterfallCohortName);
     if (mappingData && mappingData.length > 0) {
       const columnName = Object.keys(mappingData[0])[0];
       const keyword = columnName.split('_Group')[0];

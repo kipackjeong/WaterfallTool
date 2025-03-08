@@ -2,16 +2,17 @@ import { type ReactNode, createContext, useRef, useContext } from 'react'
 import { useStore } from 'zustand'
 import { createStore } from 'zustand/vanilla'
 import { devtools } from 'zustand/middleware'
-import { InstanceViewModel } from '../models'
+import { InstanceViewModel, User } from '../models'
 import apiClient from '../api/apiClient'
 import * as _ from 'lodash';
+import { getAuthHeaders } from '../utils/authUtils'
 
 export type InstanceState = {
     instanceViewState: InstanceViewModel
 }
 
 export type InstanceActions = {
-    setInstanceViewState: (newInstanceViewState: InstanceViewModel) => void
+    setInstanceViewState: (user: User, newInstanceViewState: InstanceViewModel) => void
 }
 
 export type InstanceStore = InstanceState & InstanceActions
@@ -33,19 +34,23 @@ export const createInstanceStore = (
                     });
                 },
 
-                setInstanceViewState: async (newInstanceViewState: InstanceViewModel) => {
+                setInstanceViewState: async (user, newInstanceViewState: InstanceViewModel) => {
                     // Utility function to execute SQL queries and handle errors consistently
-                    const executeQuery = async (instanceView: InstanceViewModel, query: string, errorMessage: string): Promise<any> => {
+                    const executeQuery = async (user, instanceView: InstanceViewModel, query: string, errorMessage: string): Promise<any> => {
                         try {
-                            const response = await apiClient.post('runQuery', {
-                                server: instanceView.server,
-                                database: instanceView.database,
-                                table: instanceView.table,
-                                user: instanceView.sqlConfig.user,
-                                password: instanceView.sqlConfig.password,
+                            const authConfig = await getAuthHeaders(user);
+                            const response = await apiClient.post('mssql/query', {
+                                config: {
+                                    server: instanceView.server,
+                                    database: instanceView.database,
+                                    table: instanceView.table,
+                                    user: instanceView.sqlConfig.user,
+                                    password: instanceView.sqlConfig.password,
+                                },
                                 query
-                            });
-                            return response.data;
+                            }, authConfig);
+                            console.log('response:', response)
+                            return response;
                         } catch (err) {
                             console.error(`${errorMessage}:`, err);
                             return null;
@@ -53,7 +58,7 @@ export const createInstanceStore = (
                     };
 
                     // Get count of groups for a specific keyword
-                    const getDataCount = async (instanceView: InstanceViewModel, keyword: string): Promise<any> => {
+                    const getDataCount = async (user, instanceView: InstanceViewModel, keyword: string): Promise<any> => {
                         const query = `
                             DECLARE @sql NVARCHAR(MAX);
                             DECLARE @groupFinalColumn NVARCHAR(128);
@@ -84,17 +89,17 @@ export const createInstanceStore = (
                             EXEC sp_executesql @sql;
                         `;
 
-                        return executeQuery(instanceView, query, `Getting ${keyword} count failed`);
+                        return executeQuery(user, instanceView, query, `Getting ${keyword} count failed`);
                     };
 
                     // Get all available mapping names from columns
-                    const queryMappingNames = async (instanceView: InstanceViewModel): Promise<string[]> => {
+                    const queryMappingNames = async (user, instanceView: InstanceViewModel): Promise<string[]> => {
                         const keywords = ['Procedure', 'Provider', 'Insurance', 'Location'];
                         const query = `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
                                        WHERE TABLE_NAME = '${instanceView.table}' 
                                        AND (${keywords.map(keyword => `COLUMN_NAME LIKE '%${keyword}%'`).join(' OR ')})`;
 
-                        const mappingNames = await executeQuery(instanceView, query, 'Error getting mapping names');
+                        const mappingNames = await executeQuery(user, instanceView, query, 'Error getting mapping names');
 
                         if (!mappingNames) return [];
 
@@ -104,7 +109,7 @@ export const createInstanceStore = (
                     };
 
                     // Get numeric table data for statistics
-                    const fetchNumericTableData = async (instanceView: InstanceViewModel) => {
+                    const fetchNumericTableData = async (user, instanceView: InstanceViewModel): Promise<any> => {
                         const query = `
                             SELECT
                                 SUM(Charge_Amount) AS Total_Charge_Amount,
@@ -117,7 +122,7 @@ export const createInstanceStore = (
                             FROM ${instanceView.table};
                         `;
 
-                        const result = await executeQuery(instanceView, query, 'Error getting numeric table data');
+                        const result = await executeQuery(user, instanceView, query, 'Error getting numeric table data');
                         if (!result || !result[0]) return [];
 
                         const data = result[0];
@@ -147,8 +152,8 @@ export const createInstanceStore = (
                     try {
                         // Fetch all necessary data in parallel
                         const [mappingNames, numericTableData] = await Promise.all([
-                            queryMappingNames(newInstanceViewState),
-                            fetchNumericTableData(newInstanceViewState)
+                            queryMappingNames(user, newInstanceViewState),
+                            fetchNumericTableData(user, newInstanceViewState)
                         ]);
 
                         // For each mapping name, get the count data
@@ -157,7 +162,7 @@ export const createInstanceStore = (
                                 waterfallCohortName: keyword,
                                 run: true,
                                 aggregate: true,
-                                count: (await getDataCount(newInstanceViewState, keyword))?.[0]?.ROW_COUNT || 0
+                                count: (await getDataCount(user, newInstanceViewState, keyword))?.[0]?.ROW_COUNT || 0
                             }))
                         );
 

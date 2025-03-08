@@ -393,6 +393,7 @@ const ServerItem = ({ project, sqlServerInfo, toggleDatabase, expandedDatabases,
 
 const DatabaseItem = ({ project, databaseInfo, sqlServerInfo, toggleDatabase, expandedDatabases, setInstanceViewState }) => {
     const { deleteTable } = useProjectStore(state => state)
+    const { user } = useAuth();
 
     // Create a custom title with the database icon
     const databaseTitle = (
@@ -422,7 +423,8 @@ const DatabaseItem = ({ project, databaseInfo, sqlServerInfo, toggleDatabase, ex
                 }
             }}
             onClick={() => {
-                setInstanceViewState({
+                if (!user) return;
+                setInstanceViewState(user, {
                     isRemote: sqlServerInfo.isRemote,
                     server: sqlServerInfo.name,
                     database: databaseInfo.name,
