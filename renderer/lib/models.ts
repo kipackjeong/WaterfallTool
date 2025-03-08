@@ -33,17 +33,17 @@ export type TableViewModel = {
 export type InstanceViewModel = {
     isRemote: boolean
     server: string
-    database?: string
+    database: string
     table: string
     sqlConfig: SqlConfig
-    dataCount: number
-    waterfallCohortsTableData: {
+    dataCount?: number
+    waterfallCohortsTableData?: {
         waterfallCohortName: string
         run: boolean
         aggregate: boolean
         count: number
     }[]
-    numericTableData: any[]
+    numericTableData?: any[]
 }
 
 export type MappingsViewModel = {

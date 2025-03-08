@@ -11,12 +11,13 @@ import { useInstanceStore } from "../../lib/states/instanceState";
 import { DarkModeSwitch } from "./DarkModeSwitch";
 import { FaPlus, FaChevronLeft, FaChevronRight, FaTable, FaSignOutAlt } from "react-icons/fa";
 import { useAuth } from "../../lib/contexts/authContext";
+import _ from 'lodash';
 
 const MotionBox = motion(Box); // Create a motion-enabled Box
 
 const Sidebar = () => {
     const { projectsArrState, initProjects } = useProjectStore(state => state);
-    const { setInstanceViewState } = useInstanceStore(state => state);
+    const { setInstanceViewState, instanceViewState } = useInstanceStore(state => state);
     const [isOpen, setIsOpen] = useState(true);
     const [showDatabaseForm, setShowDatabaseForm] = useState(false);
     const { colorMode } = useColorMode();
@@ -178,6 +179,19 @@ const Sidebar = () => {
         }
     }, [projectsArrState]);
 
+    const onTableClick = (sqlServerInfo, databaseInfo, tableInfo) => {
+        // handling idempotency
+        if (sqlServerInfo.name !== instanceViewState?.server || databaseInfo.name !== instanceViewState?.database || tableInfo.name !== instanceViewState?.table) {
+            setInstanceViewState(user, {
+                isRemote: sqlServerInfo.isRemote,
+                server: sqlServerInfo.name,
+                database: databaseInfo.name,
+                table: tableInfo.name,
+                sqlConfig: sqlServerInfo.sqlConfig
+            })
+        }
+    }
+
     const toggleDatabase = (databaseName) => {
         setExpandedDatabases((prevState) => ({
             ...prevState,
@@ -298,7 +312,7 @@ const Sidebar = () => {
                                                         sqlServerInfo={sqlServerInfo}
                                                         toggleDatabase={toggleDatabase}
                                                         expandedDatabases={expandedDatabases}
-                                                        setInstanceViewState={setInstanceViewState}
+                                                        onTableClick={onTableClick}
                                                     />
                                                 ))}
                                             </Flex>
@@ -369,7 +383,7 @@ const Sidebar = () => {
 
 export default Sidebar;
 
-const ServerItem = ({ project, sqlServerInfo, toggleDatabase, expandedDatabases, setInstanceViewState }) => {
+const ServerItem = ({ project, sqlServerInfo, toggleDatabase, expandedDatabases, onTableClick }) => {
     return (
         <ExpandableList
             title={sqlServerInfo.name}
@@ -382,7 +396,7 @@ const ServerItem = ({ project, sqlServerInfo, toggleDatabase, expandedDatabases,
                     sqlServerInfo={sqlServerInfo}
                     toggleDatabase={toggleDatabase}
                     expandedDatabases={expandedDatabases}
-                    setInstanceViewState={setInstanceViewState}
+                    onTableClick={onTableClick}
                 />
             ))}
             initialExpanded={true}
@@ -391,7 +405,7 @@ const ServerItem = ({ project, sqlServerInfo, toggleDatabase, expandedDatabases,
     );
 };
 
-const DatabaseItem = ({ project, databaseInfo, sqlServerInfo, toggleDatabase, expandedDatabases, setInstanceViewState }) => {
+const DatabaseItem = ({ project, databaseInfo, sqlServerInfo, toggleDatabase, expandedDatabases, onTableClick }) => {
     const { deleteTable } = useProjectStore(state => state)
     const { user } = useAuth();
 
@@ -424,13 +438,7 @@ const DatabaseItem = ({ project, databaseInfo, sqlServerInfo, toggleDatabase, ex
             }}
             onClick={() => {
                 if (!user) return;
-                setInstanceViewState(user, {
-                    isRemote: sqlServerInfo.isRemote,
-                    server: sqlServerInfo.name,
-                    database: databaseInfo.name,
-                    table: tableInfo.name,
-                    sqlConfig: sqlServerInfo.sqlConfig
-                })
+                onTableClick(sqlServerInfo, databaseInfo, tableInfo)
             }}
         >
             <Flex gap={2} alignItems="center">
