@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import TextInput from './TextInput';
 
 interface WaterfallInputProps {
@@ -9,6 +9,11 @@ interface WaterfallInputProps {
 
 const WaterfallInput: React.FC<WaterfallInputProps> = ({ value, sx, onBlur }) => {
   const [waterfallValue, setWaterfallValue] = useState(value);
+
+  // Update local state when prop value changes (e.g., during sorting)
+  useEffect(() => {
+    setWaterfallValue(value);
+  }, [value]);
 
   return (
     <TextInput
