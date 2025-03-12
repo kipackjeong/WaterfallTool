@@ -8,6 +8,7 @@ import next from 'next';
 import { NestJSServerManager } from './nestjs-server';
 import * as fs from 'fs';
 import * as path from 'path';
+import { initLlamaService } from './helpers/llamaService';
 
 // Set up logging to file for production debugging
 const setupLogging = () => {
@@ -194,6 +195,9 @@ process.env.APP_LOG_FILE = logFilePath;
 // Initialize server runner instance
 const nestJSServer = new NestJSServerManager(app);
 
+// Initialize Llama service
+initLlamaService();
+
 // Prepare the renderer once the app is ready
 app.on('ready', async () => {
     // Start the NestJS server
@@ -213,8 +217,7 @@ app.on('ready', async () => {
             nodeIntegration: false,
             contextIsolation: true,
             webSecurity: false, // Temporarily disable for debugging
-            // need below for static export
-            // preload: join(app.getAppPath(), 'main/preload.js'),
+            preload: join(__dirname, 'preload.js'),
         },
     });
 
