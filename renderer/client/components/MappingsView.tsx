@@ -1,7 +1,8 @@
-import React, { ElementType, useEffect, useState } from 'react';
+import React, { ElementType, useEffect, useState, useMemo } from 'react';
 import {
-    Flex, Icon, IconButton, Tab, Table, TabList, TabPanel, TabPanels, Tabs, Tbody, Td, Text, Th, Thead, Tooltip, Tr, useColorMode, useColorModeValue, useToast
+    Flex, Icon, IconButton, Tab, Table, TabList, TabPanel, TabPanels, Tabs, Tbody, Td, Text, Th, Thead, Tooltip, Tr, useColorMode, useColorModeValue, useToast, Box
 } from '@chakra-ui/react';
+import { TriangleDownIcon, TriangleUpIcon } from '@chakra-ui/icons';
 import { FaDownload, FaSync, FaUpload } from 'react-icons/fa';
 import useExportToExcel from '../../lib/hooks/useExportToExcel';
 import { MappingsViewModel } from '../../lib/models';
@@ -48,39 +49,6 @@ const MappingsView: React.FC = () => {
         }, 2000);
 
     };
-
-    // Data fetching function with error handling
-    // const refreshFetchMappingsViewsState = async () => {
-    //     setLoading(true);
-    //     setError(null);
-
-    //     setTimeout(async () => {
-    //         try {
-    //             await refreshMappingsArrState(InstanceState);
-    //             toast({
-    //                 title: 'Mapping refreshed successfully.',
-    //                 status: 'success',
-    //                 duration: 3000,
-    //                 isClosable: true
-    //             })
-    //         } catch (error) {
-    //             setError('Failed to fetch mapping views state.');
-    //             toast({
-    //                 title: 'Error',
-    //                 description: 'Failed to refresh mapping views state.',
-    //                 status: 'error',
-    //                 duration: 3000,
-    //                 isClosable: true
-    //             })
-    //         } finally {
-    //             setLoading(false);
-    //             setLoading(true);
-    //             setTimeout(() => {
-    //                 setLoading(false);
-    //             }, 1000);
-    //         }
-    //     }, 500);
-    // }
 
     // Export mapping data to Excel
     const handleExport = (mapping: MappingsViewModel) => {
@@ -216,6 +184,15 @@ const MappingsView: React.FC = () => {
 
 export default MappingsView;
 
+// Type for sort direction
+type SortDirection = 'asc' | 'desc' | null;
+
+// Interface for column sorting
+interface SortConfig {
+    key: string;
+    direction: SortDirection;
+}
+
 // Interface for MappingTable props
 interface MappingTableProps {
     mapping: MappingsViewModel;
@@ -229,6 +206,9 @@ const MappingTable: React.FC<MappingTableProps> = ({ mapping, mappingIndex, modi
     const { colorMode } = useColorMode();
     const tableBorderColor = getTableBorderColor(colorMode, 0.6);
     const headerTextColor = getHeadTextColor(colorMode);
+    
+    // State for sorting
+    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: '', direction: null });
 
     const cellStyle = {
         maxWidth: "300px",
@@ -238,7 +218,9 @@ const MappingTable: React.FC<MappingTableProps> = ({ mapping, mappingIndex, modi
     const headerCellStyle = {
         ...cellStyle,
         color: headerTextColor,
-        borderColor: tableBorderColor
+        borderColor: tableBorderColor,
+        cursor: 'pointer',
+        userSelect: 'none'
     };
 
     const waterfallCellStyle = {
@@ -251,28 +233,134 @@ const MappingTable: React.FC<MappingTableProps> = ({ mapping, mappingIndex, modi
         borderColor: waterfallColor,
         borderRadius: 'none'
     };
+    
+    // Handle column sorting
+    const handleSort = (key: string) => {
+        let direction: SortDirection = 'asc';
+        
+        if (sortConfig.key === key) {
+            if (sortConfig.direction === 'asc') {
+                direction = 'desc';
+            } else if (sortConfig.direction === 'desc') {
+                direction = null;
+            }
+        }
+        
+        setSortConfig({ key, direction });
+    };
+    
+    // Get sorted data based on current sort configuration
+    const sortedData = useMemo(() => {
+        if (!sortConfig.direction || !sortConfig.key) {
+            return mapping.data;
+        }
+        
+        return [...mapping.data].sort((a, b) => {
+            // Special handling for Waterfall_Group column
+            if (sortConfig.key === 'Waterfall_Group') {
+                const aValue = String(a.Waterfall_Group || '').toLowerCase();
+                const bValue = String(b.Waterfall_Group || '').toLowerCase();
+                
+                if (aValue < bValue) {
+                    return sortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (aValue > bValue) {
+                    return sortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            }
+            
+            const aValue = a[sortConfig.key];
+            const bValue = b[sortConfig.key];
+            
+            // Handle numeric values (like amounts)
+            if (!isNaN(Number(aValue)) && !isNaN(Number(bValue))) {
+                return sortConfig.direction === 'asc' 
+                    ? Number(aValue) - Number(bValue)
+                    : Number(bValue) - Number(aValue);
+            }
+            
+            // Handle string values
+            if (aValue < bValue) {
+                return sortConfig.direction === 'asc' ? -1 : 1;
+            }
+            if (aValue > bValue) {
+                return sortConfig.direction === 'asc' ? 1 : -1;
+            }
+            return 0;
+        });
+    }, [mapping.data, sortConfig]);
+    
+    // Render sort indicator
+    const renderSortIcon = (columnName: string) => {
+        if (sortConfig.key !== columnName) {
+            return null;
+        }
+        
+        return sortConfig.direction === 'asc' ? (
+            <TriangleUpIcon ml={1} w={3} h={3} />
+        ) : sortConfig.direction === 'desc' ? (
+            <TriangleDownIcon ml={1} w={3} h={3} />
+        ) : null;
+    };
+    
     return (
         <Flex sx={{ maxHeight: "1100px", overflow: "scroll" }}>
             <Table colorScheme={'blue'} size="sm" >
                 <Thead>
                     <Tr>
-                        <Th sx={headerCellStyle}>Waterfall_Group</Th>
-                        <Th sx={headerCellStyle}>{mapping.keyword}_Group_Final</Th>
-                        <Th sx={headerCellStyle}>{mapping.keyword}_Group</Th>
-                        <Th sx={headerCellStyle}>Total_Charge_Amount</Th>
-                        <Th sx={headerCellStyle}>Total_Payment_Amount</Th>
-                        <Th sx={headerCellStyle}>Earliest_Min_DOS</Th>
-                        <Th sx={headerCellStyle}>Latest_Max_DOS</Th>
+                        <Th sx={headerCellStyle} onClick={() => handleSort('Waterfall_Group')}>
+                            <Flex align="center">
+                                Waterfall_Group
+                                {renderSortIcon('Waterfall_Group')}
+                            </Flex>
+                        </Th>
+                        <Th sx={headerCellStyle} onClick={() => handleSort(`${mapping.keyword}_Group_Final`)}>
+                            <Flex align="center">
+                                {mapping.keyword}_Group_Final
+                                {renderSortIcon(`${mapping.keyword}_Group_Final`)}
+                            </Flex>
+                        </Th>
+                        <Th sx={headerCellStyle} onClick={() => handleSort(`${mapping.keyword}_Group`)}>
+                            <Flex align="center">
+                                {mapping.keyword}_Group
+                                {renderSortIcon(`${mapping.keyword}_Group`)}
+                            </Flex>
+                        </Th>
+                        <Th sx={headerCellStyle} onClick={() => handleSort('Total_Charge_Amount')}>
+                            <Flex align="center">
+                                Total_Charge_Amount
+                                {renderSortIcon('Total_Charge_Amount')}
+                            </Flex>
+                        </Th>
+                        <Th sx={headerCellStyle} onClick={() => handleSort('Total_Payment_Amount')}>
+                            <Flex align="center">
+                                Total_Payment_Amount
+                                {renderSortIcon('Total_Payment_Amount')}
+                            </Flex>
+                        </Th>
+                        <Th sx={headerCellStyle} onClick={() => handleSort('Earliest_Min_DOS')}>
+                            <Flex align="center">
+                                Earliest_Min_DOS
+                                {renderSortIcon('Earliest_Min_DOS')}
+                            </Flex>
+                        </Th>
+                        <Th sx={headerCellStyle} onClick={() => handleSort('Latest_Max_DOS')}>
+                            <Flex align="center">
+                                Latest_Max_DOS
+                                {renderSortIcon('Latest_Max_DOS')}
+                            </Flex>
+                        </Th>
                     </Tr>
                 </Thead>
                 <Tbody>
-                    {mapping.data.map((row, rowIndex) => (
+                    {sortedData.map((row, rowIndex) => (
                         <Tr key={`${mappingIndex}-${rowIndex}`}>
                             <Td sx={{ ...cellStyle, padding: '0px' }}>
                                 <WaterfallInput
                                     sx={waterfallCellStyle}
-                                    value={mapping.data[rowIndex].Waterfall_Group}
-                                    onBlur={(newVal) => modifyWaterfallGroup(mappingIndex, rowIndex, newVal)}
+                                    value={row.Waterfall_Group}
+                                    onBlur={(newVal) => modifyWaterfallGroup(mappingIndex, mapping.data.findIndex(item => item === row), newVal)}
                                 />
                             </Td>
                             <Td sx={cellStyle}>{row[`${mapping.keyword}_Group_Final`]}</Td>
