@@ -191,88 +191,6 @@ console.log('Log file location:', logFilePath);
 // Make log file path available to the renderer process
 process.env.APP_LOG_FILE = logFilePath;
 
-// Create application menu with debugging options
-// const createAppMenu = (logPath: string) => {
-//   const template = [
-//     {
-//       label: 'File',
-//       submenu: [
-//         { role: 'quit' }
-//       ]
-//     },
-//     {
-//       label: 'View',
-//       submenu: [
-//         { role: 'reload' },
-//         { role: 'forceReload' },
-//         { role: 'toggleDevTools' },
-//         { type: 'separator' },
-//         { role: 'resetZoom' },
-//         { role: 'zoomIn' },
-//         { role: 'zoomOut' },
-//         { type: 'separator' },
-//         { role: 'togglefullscreen' }
-//       ]
-//     },
-//     {
-//       label: 'Debug',
-//       submenu: [
-//         {
-//           label: 'Open Log File',
-//           click: async () => {
-//             try {
-//               const exists = fs.existsSync(logPath);
-//               if (exists) {
-//                 await shell.openPath(logPath);
-//                 console.log('Opened log file:', logPath);
-//               } else {
-//                 dialog.showMessageBox({
-//                   type: 'error',
-//                   title: 'Error',
-//                   message: 'Log file not found',
-//                   detail: `Could not find log file at: ${logPath}`
-//                 });
-//               }
-//             } catch (err: any) {
-//               console.error('Error opening log file:', err);
-//               dialog.showErrorBox('Error Opening Log', `Failed to open log file: ${err.message}`);
-//             }
-//           }
-//         },
-//         {
-//           label: 'Show Log Location',
-//           click: async () => {
-//             try {
-//               const logDir = path.dirname(logPath);
-//               await shell.openPath(logDir);
-//               console.log('Opened log directory:', logDir);
-//             } catch (err: any) {
-//               console.error('Error opening log directory:', err);
-//               dialog.showErrorBox('Error', `Failed to open log directory: ${err.message}`);
-//             }
-//           }
-//         },
-//         {
-//           label: 'Show App Data Location',
-//           click: async () => {
-//             try {
-//               const userDataPath = app.getPath('userData');
-//               await shell.openPath(userDataPath);
-//               console.log('Opened user data directory:', userDataPath);
-//             } catch (err: any) {
-//               console.error('Error opening user data directory:', err);
-//               dialog.showErrorBox('Error', `Failed to open user data directory: ${err.message}`);
-//             }
-//           }
-//         }
-//       ]
-//     }
-//   ];
-
-//   const menu = Menu.buildFromTemplate(template as any);
-//   Menu.setApplicationMenu(menu);
-// };
-
 // Initialize server runner instance
 const nestJSServer = new NestJSServerManager(app);
 
@@ -304,14 +222,6 @@ app.on('ready', async () => {
   mainWindow.webContents.on('did-fail-load', (errorCode, errorDescription) => {
     console.error('Failed to load:', errorCode, errorDescription);
   });
-
-  // mainWindow.webContents.on('did-finish-load', () => {
-  //   console.log('Window finished loading');
-  // });
-
-  // mainWindow.webContents.on('console-message', (message: any) => {
-  //   console.log('Renderer console:', message);
-  // });
 
   // Start Next.js server and load it into the window
   const port = 3000; // Ensure this doesn't conflict with NestJS (3002)
@@ -375,7 +285,7 @@ app.on('ready', async () => {
   }
 
   // Open DevTools for debugging
-  mainWindow.webContents.openDevTools();
+  isDev && mainWindow.webContents.openDevTools();
 
   // Show window when content is ready
   mainWindow.on('ready-to-show', () => {
