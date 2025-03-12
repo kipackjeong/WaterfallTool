@@ -1,7 +1,8 @@
-import { ReactNode, useState } from 'react';
-import { Box, useDisclosure } from '@chakra-ui/react';
+import { ReactNode, useState, useEffect } from 'react';
+import { Box, useDisclosure, Flex } from '@chakra-ui/react';
 import { useAuth } from '../../lib/contexts/authContext';
 import LoginModal from './LoginModal';
+import LoadingSpinner from '../common/LoadingSpinner';
 
 interface AuthGuardProps {
   children: ReactNode;
@@ -10,6 +11,25 @@ interface AuthGuardProps {
 const AuthGuard = ({ children }: AuthGuardProps) => {
   const { user, login, register, socialLogin } = useAuth();
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Show loading state for a few seconds before determining authentication status
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1500); // 2 seconds loading time
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Show loading spinner while determining auth status
+  if (isLoading) {
+    return (
+      <Flex width="100vw" height="100vh" justifyContent="center" alignItems="center">
+        <LoadingSpinner />
+      </Flex>
+    );
+  }
 
   // If user is not logged in, show login modal
   if (!user) {
