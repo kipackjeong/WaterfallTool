@@ -31,11 +31,11 @@ export type TableViewModel = {
 }
 
 export type InstanceViewModel = {
-    isRemote: boolean
+    isRemote?: boolean
     server: string
     database: string
     table: string
-    sqlConfig: SqlConfig
+    sqlConfig?: SqlConfig
     dataCount?: number
     waterfallCohortsTableData?: {
         waterfallCohortName: string
