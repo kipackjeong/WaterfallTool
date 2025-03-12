@@ -6,15 +6,19 @@ import { getAuth, signInWithCustomToken } from 'firebase/auth';
  * 
  * @returns The user object or null if not found
  */
-export const getCurrentUser = (): User | null => {
+export const getCurrentUser = async (): Promise<User | null> => {
   try {
     const userStr = localStorage.getItem('waterfall_user');
+
     if (!userStr) {
       return null;
     }
-    return JSON.parse(userStr);
+    const user = JSON.parse(userStr);
+    const idToken = await getFirebaseIdToken(user);
+
+    return { ...user, idToken };
   } catch (err) {
-    console.error('Error getting current user from localStorage:', err);
+    console.error('Error getting/validating current user from localStorage');
     return null;
   }
 };
@@ -34,13 +38,13 @@ export const getFirebaseIdToken = async (user: User): Promise<string> => {
   try {
     // Get the custom token from the user object directly if available
     let customToken = user?.customToken;
-    
+
     // If customToken is not in the user object, try to get it from localStorage as backup
     if (!customToken) {
       const userFromStorage = getCurrentUser();
       customToken = userFromStorage?.customToken || '';
     }
-    
+
     // If we still don't have a valid token, throw an error
     if (!customToken) {
       throw new Error('No authentication token available');
@@ -49,7 +53,7 @@ export const getFirebaseIdToken = async (user: User): Promise<string> => {
     // Sign in to Firebase with the custom token
     const auth = getAuth();
     const userCred = await signInWithCustomToken(auth, customToken);
-    
+
     // Get the ID token for API authentication
     const idToken = await userCred.user.getIdToken();
     return idToken;

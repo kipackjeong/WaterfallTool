@@ -24,6 +24,7 @@ import { getDarkestThemeColor, getTableBorderColor } from '../../lib/themes/them
 import { toDollar } from '../../lib/utils/numericHelper';
 import { MappingsStoreProvider } from '@/lib/states/mappingsState';
 import MappingsView from './MappingsView';
+import _ from 'lodash';
 
 const colorScheme = 'blue';
 
@@ -80,8 +81,8 @@ const selectionStyles = {
 };
 
 const InstanceView = () => {
-  const { instanceViewState } = useInstanceStore((state) => state);
-  // Using the waterfallCohortsTableData from instanceViewState directly
+  const { InstanceState } = useInstanceStore((state) => state);
+  // Using the waterfallCohortsTableData from InstanceState directly
   const [loading, setLoading] = useState(true);
   const [isDrawerOpen, setIsDrawerOpen] = useState(true); // State for horizontal drawer control
   const [isVerticalDrawerOpen, setIsVerticalDrawerOpen] = useState(true); // State for vertical drawer control
@@ -188,7 +189,7 @@ const InstanceView = () => {
     },
   };
   useEffect(() => {
-    console.log('instanceViewState:', instanceViewState)
+    console.log('InstanceState:', InstanceState)
     const fetchData = async () => {
       setLoading(true);
       try {
@@ -201,11 +202,11 @@ const InstanceView = () => {
       }
     };
 
-    if (instanceViewState) fetchData();
-  }, [instanceViewState]);
+    if (InstanceState) fetchData();
+  }, [InstanceState]);
 
   const renderCohortTable = () => {
-    if (!instanceViewState) return null;
+    if (!InstanceState || loading || _.isEmpty(InstanceState.waterfallCohortsTableData)) return <LoadingSpinner />;
     return (
       <Table sx={{ ...tableStyles, width: "0px" }}>
         <Thead>
@@ -217,7 +218,7 @@ const InstanceView = () => {
           </Tr>
         </Thead>
         <Tbody>
-          {instanceViewState.waterfallCohortsTableData?.map((cohort, index) => (
+          {InstanceState.waterfallCohortsTableData?.map((cohort, index) => (
             <CohortRow
               key={index}
               cohort={cohort}
@@ -230,11 +231,7 @@ const InstanceView = () => {
   }
 
   const renderNumericFieldsTable = () => {
-    // if (loading || !instanceViewState?.numericTableData || instanceViewState.numericTableData.length === 0) {
-    //   return <LoadingSpinner />;
-    // }
-
-    if (!instanceViewState || loading) return <LoadingSpinner />;
+    if (!InstanceState || loading || _.isEmpty(InstanceState.numericTableData)) return <LoadingSpinner />;
     return (
       <Table sx={{ ...tableStyles }}>
         <Thead>
@@ -248,7 +245,7 @@ const InstanceView = () => {
           </Tr>
         </Thead>
         <Tbody>
-          {instanceViewState?.numericTableData?.map((field) => (
+          {InstanceState?.numericTableData?.map((field) => (
             <NumericFieldRow key={field.fieldName} field={field} borderColor={tableBorderColor} />
           ))}
         </Tbody>
@@ -257,12 +254,6 @@ const InstanceView = () => {
   };
   return (
     <Flex width="100%" direction="column" position="relative">
-      {/* {!instanceViewState || loading &&
-        <div style={{ width: "100vw", height: "100vh" }}>
-          <LoadingSpinner />
-        </div>
-      } */}
-      {/* Pull-down Drawer (Blind-like animation) */}
       <motion.div
         className="motion.div"
         initial="closed" // Start with a small portion visible
@@ -460,10 +451,7 @@ const InstanceView = () => {
 
         {/* Main content (shifted down to avoid overlap) */}
         <Flex sx={{ width: "100%", height: "100%" }} direction="column" alignItems="center" justifyContent="center" px={4} py={2}> {/* Increased padding to account for the visible drawer portion */}
-          {/* Distribution line for grok */}
-          <MappingsStoreProvider>
-            <MappingsView />
-          </MappingsStoreProvider>
+          <MappingsView />
         </Flex>
       </motion.div>
     </Flex>

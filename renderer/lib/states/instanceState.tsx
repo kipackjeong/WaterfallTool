@@ -6,13 +6,14 @@ import { InstanceViewModel, User } from '../models'
 import apiClient from '../api/apiClient'
 import * as _ from 'lodash';
 import { getAuthHeaders } from '../utils/authUtils'
+import { createMappingsStore } from './mappingsState'
 
 export type InstanceState = {
-    instanceViewState: InstanceViewModel
+    InstanceState: InstanceViewModel
 }
 
 export type InstanceActions = {
-    setInstanceViewState: (user: User, newInstanceViewState: InstanceViewModel) => void
+    setInstance: (user: User, newInstanceState: InstanceViewModel) => void
 }
 
 export type InstanceStore = InstanceState & InstanceActions
@@ -21,7 +22,7 @@ export type InstanceStore = InstanceState & InstanceActions
 
 export const createInstanceStore = (
     initState: InstanceState = {
-        instanceViewState: null,
+        InstanceState: null,
     },
 ) => {
     return createStore<InstanceStore>()(
@@ -29,21 +30,42 @@ export const createInstanceStore = (
             persist(
                 (set) => ({
                     ...initState,
-                    initInstance: async (instanceViewState: InstanceViewModel) => {
+                    initInstance: async (InstanceState: InstanceViewModel) => {
                         set(prevState => {
                             const newState = _.cloneDeep(prevState);
-                            newState.instanceViewState = instanceViewState;
+                            newState.InstanceState = InstanceState;
                             return newState;
                         });
                     },
 
-                    setInstanceViewState: async (user, newInstanceViewState: InstanceViewModel) => {
+                    setInstance: async (user, newInstanceState: InstanceViewModel) => {
+                        // Try to load from sessionStorage first
+                        try {
+                            const stateKey = `instance_state_${newInstanceState.server}_${newInstanceState.database}_${newInstanceState.table}`;
+                            const savedState = sessionStorage.getItem(stateKey);
+                            
+                            if (savedState) {
+                                const parsedState = JSON.parse(savedState);
+                                console.log('Loaded state from sessionStorage:', parsedState);
+                                
+                                set(prevState => {
+                                    const newState = _.cloneDeep(prevState);
+                                    newState.InstanceState = parsedState;
+                                    return newState;
+                                });
+                                
+                                // Return early if we have saved state
+                                return;
+                            }
+                        } catch (err) {
+                            console.error('Error loading state from sessionStorage:', err);
+                        }
                         // Utility function to execute SQL queries and handle errors consistently
                         const executeQuery = async (user, instanceView: InstanceViewModel, query: string, errorMessage: string): Promise<any> => {
                             try {
                                 // Generate a cache key based on the query and instance details
                                 const cacheKey = `query_cache_${instanceView.server}_${instanceView.database}_${instanceView.table}_${query.replace(/\s+/g, '')}`;
-                                
+
                                 // Check if we have this data in sessionStorage
                                 try {
                                     const cachedData = sessionStorage.getItem(cacheKey);
@@ -55,7 +77,7 @@ export const createInstanceStore = (
                                     console.error('Error accessing cache:', cacheErr);
                                     // Continue with API call if cache access fails
                                 }
-                                
+
                                 // If not in cache, make the API call
                                 const authConfig = await getAuthHeaders(user);
                                 const response = await apiClient.post('mssql/query', {
@@ -69,7 +91,7 @@ export const createInstanceStore = (
                                     query
                                 }, authConfig);
                                 console.log('response:', response);
-                                
+
                                 // Cache the response for future use
                                 try {
                                     const cacheKey = `query_cache_${instanceView.server}_${instanceView.database}_${instanceView.table}_${query.replace(/\s+/g, '')}`;
@@ -78,7 +100,7 @@ export const createInstanceStore = (
                                     console.error('Error caching response:', cacheErr);
                                     // Continue even if caching fails
                                 }
-                                
+
                                 return response;
                             } catch (err) {
                                 console.error(`${errorMessage}:`, err);
@@ -87,7 +109,10 @@ export const createInstanceStore = (
                         };
 
                         // Get count of groups for a specific keyword
-                        const getDataCount = async (user, instanceView: InstanceViewModel, keyword: string): Promise<any> => {
+                        const getMappingDataCount = async (user, instanceView: InstanceViewModel, keyword: string): Promise<any> => {
+                            const mappingsStore = createMappingsStore();
+                            // const mappingsState = mappingsStore.getState();
+
                             const query = `
                             DECLARE @sql NVARCHAR(MAX);
                             DECLARE @groupFinalColumn NVARCHAR(128);
@@ -181,8 +206,8 @@ export const createInstanceStore = (
                         try {
                             // Fetch all necessary data in parallel
                             const [mappingNames, numericTableData] = await Promise.all([
-                                queryMappingNames(user, newInstanceViewState),
-                                fetchNumericTableData(user, newInstanceViewState)
+                                queryMappingNames(user, newInstanceState),
+                                fetchNumericTableData(user, newInstanceState)
                             ]);
 
                             // For each mapping name, get the count data
@@ -191,18 +216,27 @@ export const createInstanceStore = (
                                     waterfallCohortName: keyword,
                                     run: true,
                                     aggregate: true,
-                                    count: (await getDataCount(user, newInstanceViewState, keyword))?.[0]?.ROW_COUNT || 0
+                                    count: (await getMappingDataCount(user, newInstanceState, keyword))?.[0]?.ROW_COUNT || 0
                                 }))
                             );
 
                             // Update state with all the collected data
                             set(prevState => {
                                 const newState = _.cloneDeep(prevState);
-                                newState.instanceViewState = {
-                                    ...newInstanceViewState,
+                                newState.InstanceState = {
+                                    ...newInstanceState,
                                     waterfallCohortsTableData,
                                     numericTableData
                                 };
+                                
+                                // Save to sessionStorage
+                                try {
+                                    const stateKey = `instance_state_${newInstanceState.server}_${newInstanceState.database}_${newInstanceState.table}`;
+                                    sessionStorage.setItem(stateKey, JSON.stringify(newState.InstanceState));
+                                } catch (err) {
+                                    console.error('Error saving state to sessionStorage:', err);
+                                }
+                                
                                 return newState;
                             });
 
@@ -212,7 +246,7 @@ export const createInstanceStore = (
                             // Still update with the new instance state even if data fetching fails
                             set(prevState => {
                                 const newState = _.cloneDeep(prevState);
-                                newState.instanceViewState = newInstanceViewState;
+                                newState.InstanceState = newInstanceState;
                                 return newState;
                             });
 

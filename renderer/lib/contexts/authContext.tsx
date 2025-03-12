@@ -5,6 +5,7 @@ import CryptoJS from 'crypto-js';
 import { authService } from '../services/authService';
 import { GOOGLE_CLIENT_ID } from '../config/auth';
 import { getAuth, signInWithCustomToken, signInWithEmailAndPassword } from "firebase/auth";
+import { getCurrentUser } from '../utils/authUtils';
 
 // Define the shape of our context
 interface AuthContextType {
@@ -29,10 +30,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const savedUser = localStorage.getItem('waterfall_user');
-        if (savedUser) {
-          setUser(JSON.parse(savedUser));
-        }
+
+        const savedUser = await getCurrentUser();
+        setUser(savedUser);
+
       } catch (error) {
         console.error('Error loading user from localStorage', error);
         // Clear corrupted data

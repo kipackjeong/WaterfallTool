@@ -73,7 +73,18 @@ const setupLogging = () => {
     return logFile;
 };
 
-// Removed spawn override as it can cause memory issues and segmentation faults
+// Override spawn for debugging (unchanged)
+(function () {
+    var childProcess = require('child_process');
+    var oldSpawn = childProcess.spawn;
+    function mySpawn(this: any): any {
+        console.log('spawn called');
+        console.log(arguments);
+        var result = oldSpawn.apply(this, arguments);
+        return result;
+    }
+    childProcess.spawn = mySpawn;
+})();
 
 // Prepare Next.js app (shared for dev and prod)
 const prepareNext = async (isDevMode: boolean) => {
@@ -180,13 +191,6 @@ console.log('Log file location:', logFilePath);
 // Make log file path available to the renderer process
 process.env.APP_LOG_FILE = logFilePath;
 
-// Improve memory management to prevent segmentation faults
-app.commandLine.appendSwitch('js-flags', '--max-old-space-size=4096');
-app.commandLine.appendSwitch('disable-http-cache');
-
-// Disable hardware acceleration if causing issues
-app.disableHardwareAcceleration();
-
 // Initialize server runner instance
 const nestJSServer = new NestJSServerManager(app);
 
@@ -201,7 +205,7 @@ app.on('ready', async () => {
         console.error('Failed to start NestJS server:', error);
     }
 
-    // Setup main window with optimized memory settings
+    // Setup main window
     const mainWindow = new BrowserWindow({
         width: 1200,
         height: 1050,
@@ -211,18 +215,7 @@ app.on('ready', async () => {
             webSecurity: false, // Temporarily disable for debugging
             // need below for static export
             // preload: join(app.getAppPath(), 'main/preload.js'),
-            backgroundThrottling: false,
-            devTools: isDev,
         },
-        show: false, // Don't show until ready
-    });
-    
-    // Disable garbage collection when window is hidden
-    mainWindow.on('close', (e) => {
-        if (process.platform === 'darwin') {
-            e.preventDefault();
-            mainWindow.hide();
-        }
     });
 
     // Add event handlers for debugging
@@ -237,14 +230,10 @@ app.on('ready', async () => {
         const { handle } = await prepareNext(isDev);
         console.log('Next.js preparation completed successfully');
 
-        // Create server with error handling and reduced logging
         const nextServer = createServer((req: any, res: any) => {
             try {
                 const parsedUrl = parse(req.url, true);
-                // Reduce logging to prevent memory buildup
-                if (!req.url.includes('/_next/')) {
-                    console.log(`Handling request: ${req.method} ${req.url}`);
-                }
+                console.log(`Handling request: ${req.method} ${req.url}`);
                 handle(req, res, parsedUrl);
             } catch (err) {
                 console.error('Error handling request:', err);
@@ -276,38 +265,18 @@ app.on('ready', async () => {
                     console.log('Page loaded successfully!');
                 });
 
-                // Attempt to load the URL with proper memory management
-                let loadAttempts = 0;
-                const maxAttempts = 3;
-                
-                const attemptLoad = () => {
-                    if (loadAttempts >= maxAttempts) {
-                        console.error(`Failed to load after ${maxAttempts} attempts`);
-                        return;
-                    }
-                    
-                    loadAttempts++;
-                    console.log(`Load attempt ${loadAttempts} of ${maxAttempts}...`);
-                    
-                    mainWindow.loadURL(`http://localhost:${port}/`).then(() => {
-                        console.log('LoadURL promise resolved successfully');
-                    }).catch((err) => {
-                        console.error(`Failed to load Next.js URL (attempt ${loadAttempts}):`, err);
-                        
-                        if (loadAttempts < maxAttempts) {
-                            console.log(`Retrying in 1 second...`);
-                            setTimeout(attemptLoad, 1000);
-                        } else {
-                            // Try alternative approach if standard loading fails
-                            console.log('Trying alternative loading approach...');
-                            mainWindow.loadFile(join(app.getAppPath(), 'renderer', '.next', 'server', 'pages', 'index.html')).catch(e => {
-                                console.error('Alternative loading also failed:', e);
-                            });
-                        }
+                // Attempt to load the URL
+                mainWindow.loadURL(`http://localhost:${port}/`).then(() => {
+                    console.log('LoadURL promise resolved successfully');
+                }).catch((err) => {
+                    console.error('Failed to load Next.js URL:', err);
+
+                    // Try alternative approach if standard loading fails
+                    console.log('Trying alternative loading approach...');
+                    mainWindow.loadFile(join(app.getAppPath(), 'renderer', '.next', 'server', 'pages', 'index.html')).catch(e => {
+                        console.error('Alternative loading also failed:', e);
                     });
-                };
-                
-                attemptLoad();
+                });
             }, 2000); // Increased delay for better reliability
         });
     } catch (err) {

@@ -17,7 +17,7 @@ const MotionBox = motion(Box); // Create a motion-enabled Box
 
 const Sidebar = () => {
     const { projectsArrState, initProjects } = useProjectStore(state => state);
-    const { setInstanceViewState, instanceViewState } = useInstanceStore(state => state);
+    const { setInstance, InstanceState } = useInstanceStore(state => state);
     const [isOpen, setIsOpen] = useState(true);
     const [showDatabaseForm, setShowDatabaseForm] = useState(false);
     const { colorMode } = useColorMode();
@@ -181,8 +181,8 @@ const Sidebar = () => {
 
     const onTableClick = (sqlServerInfo, databaseInfo, tableInfo) => {
         // handling idempotency
-        if (sqlServerInfo.name !== instanceViewState?.server || databaseInfo.name !== instanceViewState?.database || tableInfo.name !== instanceViewState?.table) {
-            setInstanceViewState(user, {
+        if (sqlServerInfo.name !== InstanceState?.server || databaseInfo.name !== InstanceState?.database || tableInfo.name !== InstanceState?.table) {
+            setInstance(user, {
                 isRemote: sqlServerInfo.isRemote,
                 server: sqlServerInfo.name,
                 database: databaseInfo.name,

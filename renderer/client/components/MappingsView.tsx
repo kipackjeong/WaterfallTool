@@ -18,7 +18,7 @@ import { setTimeout } from 'timers';
 // Main MappingsView component
 const MappingsView: React.FC = () => {
     const { user } = useAuth();
-    const { instanceViewState } = useInstanceStore(state => state);
+    const { InstanceState } = useInstanceStore(state => state);
     const { mappingsArrState, setMappingsArrState, upsyncMappings, modifyWaterfallGroup } = useMappingsStore(state => state);
     const exportTableToExcel = useExportToExcel();
     const toast = useToast();
@@ -31,14 +31,14 @@ const MappingsView: React.FC = () => {
 
     useEffect(() => {
         fetchMappingsViewsState();
-    }, [instanceViewState]);
+    }, [InstanceState]);
 
     // Data fetching function with error handling
     const fetchMappingsViewsState = async () => {
         setError(null);
         _setLoading(true);
         try {
-            await setMappingsArrState(user, instanceViewState);
+            await setMappingsArrState(user, InstanceState);
         } catch (error) {
             setError('Failed to fetch mapping views state.');
         }
@@ -56,7 +56,7 @@ const MappingsView: React.FC = () => {
 
     //     setTimeout(async () => {
     //         try {
-    //             await refreshMappingsArrState(instanceViewState);
+    //             await refreshMappingsArrState(InstanceState);
     //             toast({
     //                 title: 'Mapping refreshed successfully.',
     //                 status: 'success',
@@ -110,7 +110,7 @@ const MappingsView: React.FC = () => {
     // Upload mappings to server with feedback
     const handleUpload = async () => {
         try {
-            await upsyncMappings(instanceViewState);
+            await upsyncMappings(InstanceState);
             toast({
                 title: 'Success',
                 description: 'Mappings saved to database successfully.',
