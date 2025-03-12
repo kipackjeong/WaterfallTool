@@ -1,7 +1,9 @@
-import { Flex, Text, Icon, IconButton, FlexProps, IconButtonProps } from "@chakra-ui/react";
+import { Flex, Text, Icon, IconButton, FlexProps, IconButtonProps, Button } from "@chakra-ui/react";
 import { IoClose } from "react-icons/io5";
 import { ElementType, ReactNode, useState } from "react";
 import { MdKeyboardArrowDown, MdKeyboardArrowRight } from "react-icons/md";
+import { ChevronDownIcon, ChevronUpIcon } from "@chakra-ui/icons";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ExpandableListProps {
   title: string | ReactNode;
@@ -28,9 +30,6 @@ const ExpandableList = ({
   headerProps,
   containerProps,
   showChevron = true,
-  onDelete,
-  deleteButtonProps,
-  deleteConfirmMessage,
 }: ExpandableListProps) => {
   const [expanded, setExpanded] = useState(initialExpanded);
 
@@ -50,64 +49,62 @@ const ExpandableList = ({
           justifyContent: "start",
           alignItems: "center",
           gap: 2,
-          cursor: "pointer",
-          _hover: {
-            color: hoverColor,
-            '.delete-icon': {
-              display: 'flex'
-            }
-          },
         }}
-        onClick={toggleExpand}
         {...headerProps}
       >
-        {showChevron && (
-          <Icon
-            as={(expanded ? MdKeyboardArrowDown : MdKeyboardArrowRight) as ElementType}
-            fontSize="sm"
-          />
-        )}
-        {titleIcon && <Icon as={titleIcon as ElementType} />}
-        {typeof title === "string" ? <Text noOfLines={1} overflow="hidden" textOverflow="ellipsis" maxWidth="100%">{title}</Text> : title}
-
-        {onDelete && (
-          <IconButton
-            aria-label="Delete item"
-            icon={<Icon as={IoClose as ElementType} fontSize="sm" />}
-            size="sm"
-            variant="ghost"
-            colorScheme="orange"
-            className="delete-icon"
-            sx={{
-              position: 'absolute',
-              right: '0px',
-              background: 'transparent',
-              display: "none",
-              minWidth: "auto",
-              height: "auto",
-              padding: "4px",
-              _hover: {
-                background: 'transparent',
-              },
-              ...deleteButtonProps?.sx
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (window.confirm(deleteConfirmMessage || `Are you sure you want to delete this item?`)) {
-                onDelete();
-              }
-            }}
-            {...(deleteButtonProps || {})}
-          />
-        )}
+        <Button
+          variant="ghost"
+          color="white"
+          sx={{
+            padding: 0,
+            height: '24px',
+            width: '100%',
+            justifyContent: "flex-start",
+            alignItems: "center",
+            cursor: "pointer",
+            position: "relative",
+            _hover: {
+              color: hoverColor,
+            },
+          }}
+          leftIcon={
+            <Flex gap={2} alignItems="center">
+              {showChevron && (
+                <motion.div
+                  animate={{ rotate: expanded ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Icon as={ChevronDownIcon} />
+                </motion.div>
+              )}
+              {titleIcon && <Icon as={titleIcon as ElementType} />}
+            </Flex>
+          }
+          onClick={toggleExpand}
+        >
+          {typeof title === "string" ? <Text noOfLines={1} overflow="hidden" textOverflow="ellipsis" maxWidth="100%">{title}</Text> : title}
+        </Button>
       </Flex>
 
-      {expanded && items.map((item, index) => (
-        <Flex key={index} pl={4}>
-          {item}
-        </Flex>
-      ))}
-    </Flex>
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            key="content"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            style={{ overflow: "hidden" }}
+          >
+            {items.map((item, index) => (
+              <Flex key={index} pl={4}>
+                {item}
+              </Flex>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Flex >
   );
 };
 
