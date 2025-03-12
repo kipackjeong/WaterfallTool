@@ -9,7 +9,8 @@ import { useProjectStore } from "../../lib/states/projectsState";
 import DatabaseConnectionForm from "./DatabaseConnectionForm";
 import { useInstanceStore } from "../../lib/states/instanceState";
 import { DarkModeSwitch } from "./DarkModeSwitch";
-import { FaPlus, FaChevronLeft, FaChevronRight, FaTable, FaSignOutAlt, FaHome } from "react-icons/fa";
+import { FaPlus, FaChevronLeft, FaChevronRight, FaTable, FaSignOutAlt, FaProjectDiagram, FaFolderOpen } from "react-icons/fa";
+import { MdDashboard } from "react-icons/md";
 import { useAuth } from "../../lib/contexts/authContext";
 import _ from 'lodash';
 
@@ -215,6 +216,7 @@ const Sidebar = () => {
                 height="100vh"
                 initial={{ width: "32px" }} // Initial width when closed
                 animate={{ width: isOpen ? sidebarWidth : "32px" }} // Animate width based on isOpen and sidebarWidth
+                gap={2}
                 transition={{ duration: isResizing ? 0 : 0.5 }} // No transition when resizing
                 overflow="hidden" // Hide overflow to prevent content from showing when collapsed
                 style={{ cursor: isResizing ? 'ew-resize' : 'default' }}
@@ -277,14 +279,19 @@ const Sidebar = () => {
                 {isOpen && (
                     <>
                         <Divider orientation="horizontal" color={iconColor} />
-                        <Box py={2} px={4} width="100%">
+                        <Box padding="0 0 0 8px" width="100%">
                             <Button
-                                leftIcon={<Icon as={FaHome as ElementType} />}
+                                leftIcon={<Icon as={MdDashboard as ElementType} />}
                                 variant="ghost"
                                 color="white"
                                 justifyContent="flex-start"
                                 width="100%"
-                                _hover={{ bg: 'blue.700' }}
+                                sx={{
+                                    padding: 0,
+                                    width: "100%",
+                                    height: "30px"
+                                }}
+                                _hover={{ color: 'blue.400' }}
                                 onClick={navigateToDashboard}
                             >
                                 Dashboard
@@ -312,6 +319,24 @@ const Sidebar = () => {
                         {/* Projects list */}
                         {!isLoading && !error && (
                             <Flex width="100%" direction="column">
+                                <Box padding="0 0 0 8px" width="100%">
+                                    <Button
+                                        leftIcon={<Icon as={FaProjectDiagram as ElementType} />}
+                                        variant="ghost"
+                                        color="white"
+                                        justifyContent="flex-start"
+                                        width="100%"
+                                        sx={{
+                                            padding: 0,
+                                            width: "100%",
+                                            height: "30px",
+                                            pointerEvents: "none"
+                                        }}
+                                    // _hover={{ color: 'blue.400' }}
+                                    >
+                                        Projects
+                                    </Button>
+                                </Box>
                                 {projectsArrState.length === 0 ? (
                                     <VStack py={8} spacing={4}>
                                         <Text color="gray.400">No projects found</Text>
@@ -321,21 +346,24 @@ const Sidebar = () => {
                                     </VStack>
                                 ) : (
                                     projectsArrState.map((project, index) => (
-                                        <Flex width="100%" key={index} direction="column" padding="8px 8px">
-                                            <Text>{project?.name}</Text>
-                                            <Flex width="100%" gap={3} direction="column" key={index}>
-                                                {project?.sqlServers?.map((sqlServerInfo, index) => (
-                                                    <ServerItem
-                                                        key={index}
-                                                        project={project}
-                                                        sqlServerInfo={sqlServerInfo}
-                                                        toggleDatabase={toggleDatabase}
-                                                        expandedDatabases={expandedDatabases}
-                                                        onTableClick={onTableClick}
-                                                    />
-                                                ))}
-                                            </Flex>
-                                        </Flex>
+                                        <ExpandableList
+                                            key={index}
+                                            title={project?.name}
+                                            titleIcon={FaFolderOpen as ElementType}
+                                            items={project?.sqlServers?.map((sqlServerInfo, index) => (
+                                                <ServerItem
+                                                    key={index}
+                                                    project={project}
+                                                    sqlServerInfo={sqlServerInfo}
+                                                    toggleDatabase={toggleDatabase}
+                                                    expandedDatabases={expandedDatabases}
+                                                    onTableClick={onTableClick}
+                                                />
+                                            ))}
+                                            initialExpanded={true}
+                                            hoverColor="blue.400"
+                                            containerProps={{ padding: "8px 8px" }}
+                                        />
                                     ))
                                 )}
 
