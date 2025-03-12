@@ -22,7 +22,7 @@
     "build:electron": "yarn install && cd renderer && next build && cd .. && tsc -p main",
     "build:server": "cd server && yarn install && yarn build",
     "build:all": "yarn clean && yarn build:server && yarn build:electron",
-    "clean": "rm -rf dist renderer/.next main/*.js main/**/*.js server/dist",
+    "clean": "sudo rm -rf dist renderer/.next main/*.js main/**/*.js server/dist",
     "prod:server": "cd server && yarn clean && yarn build && yarn start:prod"
   },
   "dependencies": {
