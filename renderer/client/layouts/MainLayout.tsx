@@ -6,7 +6,7 @@ function MainLayout({ children }) {
     return (
         <main style={{ width: "100vw", height: "100vh", display: "flex", flexDirection: "row" }} >
             <Sidebar />
-            <Flex style={{ width: "100%", padding: "16px", overflowY: "scroll", msOverflowStyle: "scrollbar", msOverflowY: "scroll" }} >
+            <Flex style={{ width: "100%", overflowY: "scroll", msOverflowStyle: "scrollbar", msOverflowY: "scroll" }} >
                 {children}
             </Flex>
         </main>

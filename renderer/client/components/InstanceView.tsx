@@ -11,13 +11,15 @@ import {
   Tr,
   Button,
   Select,
-  Icon,
   useColorMode,
+  Box,
+  Icon,
+  useTheme,
 } from '@chakra-ui/react';
 import { useInstanceStore } from '../../lib/states/instanceState';
 import { motion } from 'framer-motion';
 import LoadingSpinner from '../common/LoadingSpinner';
-import { ChevronUpIcon, ChevronDownIcon } from '@chakra-ui/icons';
+import { ChevronUpIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons';
 import { getDarkestThemeColor, getTableBorderColor } from '../../lib/themes/theme';
 import { toDollar } from '../../lib/utils/numericHelper';
 import { MappingsStoreProvider } from '@/lib/states/mappingsState';
@@ -25,9 +27,25 @@ import MappingsView from './MappingsView';
 
 const colorScheme = 'blue';
 
+// Drawer handle styles
+const drawerHandleStyles = {
+  backdropFilter: 'blur(8px)',
+  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+  transition: 'all 0.3s ease',
+  _hover: {
+    transform: 'scale(1.05)',
+  },
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'pointer',
+};
+
 // Shared styles
 const tableStyles = {
   height: 0,
+  maxWidth: "600px",
+  minWidth: "300px",
   fontSize: 'sm'
 };
 
@@ -65,23 +83,109 @@ const InstanceView = () => {
   const { instanceViewState } = useInstanceStore((state) => state);
   // Using the waterfallCohortsTableData from instanceViewState directly
   const [loading, setLoading] = useState(true);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(true); // State for drawer control
+  const [isDrawerOpen, setIsDrawerOpen] = useState(true); // State for horizontal drawer control
+  const [isVerticalDrawerOpen, setIsVerticalDrawerOpen] = useState(true); // State for vertical drawer control
 
   const { colorMode } = useColorMode();
   const pullDownBarColor = getDarkestThemeColor(colorMode);
   const tableBorderColor = getTableBorderColor(colorMode);
 
 
+  // Theme for gradients and colors
+  const theme = useTheme();
+
+  // Horizontal drawer dimensions
   const relatedHeightDown = 400;
-  const relatedHeightUp = 5;
-  // Drawer animation variants (updated to show a small portion by default)
+  const relatedHeightUp = 8; // Thinner bar when closed
+
+  // Vertical drawer dimensions
+  const verticalDrawerWidthOpen = 350; // Width when open
+  const verticalDrawerWidthClosed = 10; // Thinner bar when closed
+
+  // Horizontal drawer animation variants with spring physics for more natural motion
   const topPanelVariants = {
-    closed: { height: relatedHeightUp, opacity: 1, transition: { duration: 0.3 } }, // Small visible portion (e.g., 40px)
-    open: { height: relatedHeightDown, opacity: 1, transition: { duration: 0.3 } }, // Full open height (e.g., 300px)
+    closed: {
+      height: relatedHeightUp,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 30
+      }
+    },
+    open: {
+      height: relatedHeightDown,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 30
+      }
+    },
   };
+
   const bottomPanelVariants = {
-    open: { top: relatedHeightDown, opacity: 1, transition: { duration: 0.3 } }, // Small visible portion (e.g., 40px)
-    closed: { top: relatedHeightUp, opacity: 1, transition: { duration: 0.3 } }, // Full open height (e.g., 300px)
+    open: {
+      top: relatedHeightDown,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 30
+      }
+    },
+    closed: {
+      top: relatedHeightUp,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 30
+      }
+    },
+  };
+
+  // Vertical drawer animation variants with spring physics
+  const leftPanelVariants = {
+    open: {
+      width: verticalDrawerWidthOpen,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 30
+      }
+    },
+    closed: {
+      width: verticalDrawerWidthClosed,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 30
+      }
+    },
+  };
+
+  const rightPanelVariants = {
+    open: {
+      left: verticalDrawerWidthOpen,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 30
+      }
+    },
+    closed: {
+      left: verticalDrawerWidthClosed,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 30
+      }
+    },
   };
   useEffect(() => {
     console.log('instanceViewState:', instanceViewState)
@@ -103,7 +207,7 @@ const InstanceView = () => {
   const renderCohortTable = () => {
     if (!instanceViewState) return null;
     return (
-      <Table sx={tableStyles} flex={1}>
+      <Table sx={{ ...tableStyles, width: "0px" }}>
         <Thead>
           <Tr>
             <Th sx={getHeaderStyles(tableBorderColor)}>Waterfall Cohort</Th>
@@ -132,7 +236,7 @@ const InstanceView = () => {
 
     if (!instanceViewState || loading) return <LoadingSpinner />;
     return (
-      <Table sx={tableStyles}>
+      <Table sx={{ ...tableStyles }}>
         <Thead>
           <Tr>
             <Th sx={getHeaderStyles(tableBorderColor)}>Numeric Fields</Th>
@@ -175,16 +279,32 @@ const InstanceView = () => {
       >
         <Flex
           direction="column"
-          p={4}
           alignItems="center"
           justifyContent="center"
           height="100%"
+          width="100%"
         >
           {/* Visible portion when closed (e.g., a handle or title) */}
           {isDrawerOpen && (
-            <Flex width="100%" height="100%" direction="column" justifyContent="center" p={4} gap={2}>
-              <Flex width="100%" gap={8} alignItems="center">
-                <Flex direction="column" alignItems="center" gap={4}>
+            <Flex width="100%" height="100%" position="relative" direction="column" justifyContent="center" gap={2}>
+              {/* Left panel with vertical drawer */}
+              <motion.div
+                className="vertical-drawer"
+                initial="open"
+                animate={isVerticalDrawerOpen ? 'open' : 'closed'}
+                variants={leftPanelVariants}
+                style={{
+                  position: 'relative',
+                  height: '100%',
+                  width: "100%",
+                  overflow: 'hidden',
+                  borderRight: isVerticalDrawerOpen ? '1px solid rgba(0,0,0,0.1)' : 'none',
+                  boxShadow: isVerticalDrawerOpen ? '0 0 15px rgba(0,0,0,0.05)' : 'none',
+                  borderRadius: '0 8px 8px 0',
+                  display: isVerticalDrawerOpen ? 'block' : 'none'
+                }}
+              >
+                <Flex width="100%" height="100%" direction="column" alignItems="center" justifyContent="center" gap={4} p={2}>
                   {renderCohortTable()}
                   <Button
                     colorScheme={colorScheme}
@@ -205,29 +325,111 @@ const InstanceView = () => {
                     Run Waterfall
                   </Button>
                 </Flex>
-                {renderNumericFieldsTable()}
-              </Flex>
+
+                {/* Vertical drawer edge gradient */}
+                <Box
+                  sx={{
+                    position: "absolute",
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: "4px",
+                    height: "100%",
+                    background: `linear-gradient(to right, transparent, ${pullDownBarColor})`,
+                    zIndex: 200,
+                  }}
+                />
+              </motion.div>
+
+              {/* Vertical drawer handle */}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  left: `calc(${isVerticalDrawerOpen ? verticalDrawerWidthOpen : verticalDrawerWidthClosed}px)`,
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: '16px',
+                  height: '40px',
+                  borderRadius: '4px',
+                  background: pullDownBarColor,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 0 5px rgba(0, 0, 0, 0.15)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  zIndex: 999,
+                  _hover: {
+                    width: '28px',
+                  }
+                }}
+                onClick={() => setIsVerticalDrawerOpen(!isVerticalDrawerOpen)}
+              >
+                <Icon sx={{ opacity: 1 }} color="white" boxSize={4}>
+                  {isVerticalDrawerOpen ? <ChevronLeftIcon /> : <ChevronRightIcon />}
+                </Icon>
+              </Box>
+
+              {/* Right panel that shifts with the drawer */}
+              <motion.div
+                className="vertical-drawer-content"
+                initial="open"
+                animate={isVerticalDrawerOpen ? 'open' : 'closed'}
+                variants={rightPanelVariants}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  bottom: 0,
+                  right: 0,
+                  zIndex: 100,
+                  left: verticalDrawerWidthOpen,
+                  height: '100%',
+                }}
+              >
+                <Flex sx={{ width: "100%", height: "100%", overflow: 'scroll', justifyContent: 'center', alignItems: 'center' }} p={2}>
+                  {renderNumericFieldsTable()}
+                </Flex>
+              </motion.div>
             </Flex>
           )}
 
           <Flex
             sx={{
+              ...drawerHandleStyles,
               position: "absolute",
               bottom: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: "20px",
-              width: "100vw",
-              background: pullDownBarColor,
+              height: "8px",
+              width: "100%",
+              background: `linear-gradient(to bottom, transparent, ${pullDownBarColor})`,
               zIndex: 101,
-              cursor: "pointer",
             }}
             onClick={() => setIsDrawerOpen(!isDrawerOpen)}
           >
-            <Icon sx={{ zIndex: 102, opacity: 1 }} color={isDrawerOpen ? 'white' : 'white'} boxSize={6}>
-              {isDrawerOpen ? <ChevronUpIcon /> : <ChevronDownIcon />}
-            </Icon>
+            {/* Bottom drawer handle */}
+            <Box
+              sx={{
+                position: 'absolute',
+                bottom: '-12px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: '40px',
+                height: '16px',
+                borderRadius: '4px',
+                background: pullDownBarColor,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 -2px 5px rgba(0, 0, 0, 0.15)',
+                transition: 'all 0.2s ease',
+                _hover: {
+                  height: '28px',
+                }
+              }}
+            >
+              <Icon color="white" boxSize={4}>
+                {isDrawerOpen ? <ChevronUpIcon /> : <ChevronDownIcon />}
+              </Icon>
+            </Box>
           </Flex>
         </Flex>
 

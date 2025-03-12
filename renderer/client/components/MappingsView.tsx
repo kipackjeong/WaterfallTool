@@ -140,7 +140,6 @@ const MappingsView: React.FC = () => {
         return <Text color="red.500">{error}</Text>;
     }
 
-    console.log('mappingsArrState:', mappingsArrState)
     // Main render with tabs and table
     return (
         <Tabs variant="line" colorScheme="blue" sx={{
