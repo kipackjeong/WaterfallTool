@@ -63,7 +63,7 @@ export const createProjectStore = (
           addProject: async (newProject: ProjectViewModel) => {
             try {
               // Get the current user from localStorage
-              const user = getCurrentUser();
+              const user = await getCurrentUser();
               if (!user) {
                 console.error('No user found in localStorage');
                 return;
@@ -99,7 +99,7 @@ export const createProjectStore = (
               });
 
               // Get the current user from localStorage
-              const user = getCurrentUser();
+              const user = await getCurrentUser();
               if (!user) {
                 console.error('No user found in localStorage');
                 return;
@@ -211,7 +211,7 @@ export const createProjectStore = (
           upSyncProject: async (projectId: string, updatedProject: ProjectViewModel) => {
             try {
               // Get the current user from localStorage
-              const user = getCurrentUser();
+              const user = await getCurrentUser();
               if (!user) {
                 console.error('No user found in localStorage');
                 return;
@@ -229,7 +229,7 @@ export const createProjectStore = (
           downSyncProject: async (projectId: string): Promise<void> => {
             try {
               // Get the current user from localStorage
-              const user = getCurrentUser();
+              const user = await getCurrentUser();
               if (!user) {
                 console.error('No user found in localStorage');
                 return;

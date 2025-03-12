@@ -41,7 +41,7 @@ export const getFirebaseIdToken = async (user: User): Promise<string> => {
 
     // If customToken is not in the user object, try to get it from localStorage as backup
     if (!customToken) {
-      const userFromStorage = getCurrentUser();
+      const userFromStorage = await getCurrentUser();
       customToken = userFromStorage?.customToken || '';
     }
 
