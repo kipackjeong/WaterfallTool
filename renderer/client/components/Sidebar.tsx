@@ -1,67 +1,81 @@
 import { Box, Flex, Icon, IconButton, Text, useColorMode, Tooltip, Divider, Spinner, VStack, Button, useToast } from "@chakra-ui/react";
 import { motion } from "framer-motion";
-import ExpandableList from "../../lib/ui/ExpandableList";
-import { IoClose, IoRefresh } from "react-icons/io5";
 import { ElementType, useCallback, useEffect, useState, useRef } from "react";
+
+// Custom components
+import ExpandableList from "../../lib/ui/ExpandableList";
+import DatabaseConnectionForm from "./DatabaseConnectionForm";
+import { DarkModeSwitch } from "./DarkModeSwitch";
+
+// Icons
+import { IoClose, IoRefresh } from "react-icons/io5";
 import { GoDatabase, GoServer } from "react-icons/go";
 import { HiOutlineArrowTurnDownRight } from "react-icons/hi2";
-import { useProjectStore } from "../../lib/states/projectsState";
-import DatabaseConnectionForm from "./DatabaseConnectionForm";
-import { useInstanceStore } from "../../lib/states/instanceState";
-import { DarkModeSwitch } from "./DarkModeSwitch";
 import { FaPlus, FaChevronLeft, FaChevronRight, FaTable, FaSignOutAlt, FaProjectDiagram, FaFolderOpen } from "react-icons/fa";
 import { MdDashboard } from "react-icons/md";
+
+// State management
+import { useProjectStore } from "../../lib/states/projectsState";
+import { useInstanceStore } from "../../lib/states/instanceState";
 import { useAuth } from "../../lib/contexts/authContext";
+
+// Utils
 import _ from 'lodash';
 
-const MotionBox = motion(Box); // Create a motion-enabled Box
+// Create a motion-enabled Box
+const MotionBox = motion(Box);
+
+// Constants
+const POLLING_INTERVAL = 30000; // Poll every 30 seconds
+const DEFAULT_SIDEBAR_WIDTH = 280; // Default width when open
 
 const Sidebar = () => {
-    const { projectsArrState, initProjects } = useProjectStore(state => state);
+    // State management hooks
+    const { projectsArrState, initProjects, deleteTable } = useProjectStore(state => state);
     const { setInstance, InstanceState } = useInstanceStore(state => state);
+    const { logout, user } = useAuth();
+    const { colorMode } = useColorMode();
+    const toast = useToast();
+
+    // UI state
     const [isOpen, setIsOpen] = useState(true);
     const [showDatabaseForm, setShowDatabaseForm] = useState(false);
-    const { colorMode } = useColorMode();
-    const { logout, user } = useAuth();
-    const sideBarBGColor = colorMode === 'light' ? 'gray.800' : 'gray.700';
-    const iconColor = 'white';
     const [expandedDatabases, setExpandedDatabases] = useState({});
-    const [sidebarWidth, setSidebarWidth] = useState(280); // Default width when open
+    const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
     const [isResizing, setIsResizing] = useState(false);
 
-    // Loading and polling states
+    // Data loading state
     const [isLoading, setIsLoading] = useState(true);
     const [isPolling, setIsPolling] = useState(false);
     const [error, setError] = useState(null);
+
+    // Refs
     const pollingIntervalRef = useRef(null);
     const pollingTimeoutRef = useRef(null);
-    const toast = useToast();
-    const POLLING_INTERVAL = 30000; // Poll every 30 seconds
 
-    // Handle resize start
+    // Theme variables
+    const sideBarBGColor = colorMode === 'light' ? 'gray.800' : 'gray.700';
+    const iconColor = 'white';
+
+    // Sidebar resizing handlers
     const startResizing = useCallback((e) => {
         e.preventDefault();
         setIsResizing(true);
     }, []);
 
-    // Handle resize end
     const stopResizing = useCallback(() => {
         setIsResizing(false);
     }, []);
 
-    // Handle resize
-    const resize = useCallback(
-        (e) => {
-            if (isResizing && isOpen) {
-                const newWidth = e.clientX;
-                // Set min and max constraints
-                if (newWidth >= 150 && newWidth <= 500) {
-                    setSidebarWidth(newWidth);
-                }
+    const resize = useCallback((e) => {
+        if (isResizing && isOpen) {
+            const newWidth = e.clientX;
+            // Set min and max constraints
+            if (newWidth >= 150 && newWidth <= 500) {
+                setSidebarWidth(newWidth);
             }
-        },
-        [isResizing, isOpen]
-    );
+        }
+    }, [isResizing, isOpen]);
 
     // Add event listeners for mouse movements
     useEffect(() => {
@@ -72,25 +86,15 @@ const Sidebar = () => {
             window.removeEventListener('mouseup', stopResizing);
         };
     }, [resize, stopResizing]);
-    // TEST SPOT 
-    useEffect(() => {
-        // apiClient.get(`users/${123}`).then(response => {
-        //     console.log(response.data.data);
-        // })
-        // apiClient.post(`users`, { email: 'kipackjeong@mail.com', name: 'Kipack Jeong' }).then(response => {
-        //     console.log(response.data.data);
-        // })
-        // apiClient.put(`users/${123}`, { name: 'John Doe' }).then(response => {
-        //     console.log(response.data.data);
-        // })
-        // apiClient.delete(`users/${123}`).then(response => {
-        //     console.log(response.data.data);
-        // })
-    }, [])
-    // Function to fetch projects with loading states
+    // Commented test code - preserved for reference
+    // useEffect(() => {
+    //     // API client tests
+    // }, [])
+    // Data fetching functions
     const fetchProjects = useCallback(async (isPollingRequest = false) => {
         if (!user) return;
 
+        // Set appropriate loading state
         if (!isPollingRequest) {
             setIsLoading(true);
         } else {
@@ -104,7 +108,9 @@ const Sidebar = () => {
         } catch (err) {
             console.error('Error fetching projects:', err);
             setError(err.message || 'Failed to load projects');
-            if (!isPollingRequest) { // Only show toast for manual refreshes
+
+            // Only show toast for manual refreshes
+            if (!isPollingRequest) {
                 toast({
                     title: 'Error loading projects',
                     description: err.message || 'Failed to load projects',
@@ -114,15 +120,16 @@ const Sidebar = () => {
                 });
             }
         } finally {
+            // Reset loading state
             if (!isPollingRequest) {
                 setIsLoading(false);
             } else {
                 setIsPolling(false);
             }
         }
-    }, [user]);
+    }, [user, initProjects, toast]);
 
-    // Function to start polling
+    // Polling management
     const startPolling = useCallback(() => {
         // Clear any existing intervals
         if (pollingIntervalRef.current) {
@@ -133,12 +140,14 @@ const Sidebar = () => {
         pollingIntervalRef.current = setInterval(() => {
             fetchProjects(true); // true indicates this is a background polling request
         }, POLLING_INTERVAL);
-    }, [fetchProjects, POLLING_INTERVAL]);
+    }, [fetchProjects]);
 
     // Manual refresh function
     const handleRefresh = useCallback(() => {
         fetchProjects(false); // false indicates this is a manual refresh
     }, [fetchProjects]);
+
+    // Effects
 
     // Initial fetch and polling setup
     useEffect(() => {
@@ -161,8 +170,10 @@ const Sidebar = () => {
         };
     }, [user, fetchProjects, startPolling]);
 
+    // Initialize expanded databases state
     useEffect(() => {
         if (!projectsArrState) return;
+
         const initializeExpandedDatabases = () => {
             const initialExpanded = {};
             projectsArrState.forEach(project => {
@@ -180,31 +191,33 @@ const Sidebar = () => {
         }
     }, [projectsArrState]);
 
-    const onTableClick = (sqlServerInfo, databaseInfo, tableInfo) => {
-        // handling idempotency
-        if (sqlServerInfo.name !== InstanceState?.server || databaseInfo.name !== InstanceState?.database || tableInfo.name !== InstanceState?.table) {
+    // Event handlers
+    const onTableClick = useCallback((sqlServerInfo, databaseInfo, tableInfo) => {
+        // Handling idempotency - only update if something changed
+        if (sqlServerInfo.name !== InstanceState?.server ||
+            databaseInfo.name !== InstanceState?.database ||
+            tableInfo.name !== InstanceState?.table) {
             setInstance(user, {
                 isRemote: sqlServerInfo.isRemote,
                 server: sqlServerInfo.name,
                 database: databaseInfo.name,
                 table: tableInfo.name,
                 sqlConfig: sqlServerInfo.sqlConfig
-            })
+            });
         }
-    }
+    }, [user, InstanceState, setInstance]);
 
-    const toggleDatabase = (databaseName) => {
+    const toggleDatabase = useCallback((databaseName) => {
         setExpandedDatabases((prevState) => ({
             ...prevState,
             [databaseName]: !prevState[databaseName],
         }));
-    };
+    }, []);
 
-    const navigateToDashboard = () => {
+    const navigateToDashboard = useCallback(() => {
         // Clear the instance state to show the dashboard
-        // Pass the user as the first argument and null as the second to clear the instance
         setInstance(user, null);
-    };
+    }, [user, setInstance]);
     return (
         <>
             <DatabaseConnectionForm isOpen={showDatabaseForm} onSuccess={() => fetchProjects(false)} />
@@ -221,9 +234,59 @@ const Sidebar = () => {
                 overflow="hidden" // Hide overflow to prevent content from showing when collapsed
                 style={{ cursor: isResizing ? 'ew-resize' : 'default' }}
             >
-                <Box w="100%" h="50px" position="relative">
+                {/* Collapse Button */}
+                <IconButton
+                    style={{ position: "absolute", top: "8px", right: "0px" }}
+                    size="sm"
+                    margin={0}
+                    padding={0}
+                    width="16px"
+                    variant="ghost"
+                    onClick={() => setIsOpen(!isOpen)}
+                    aria-label={isOpen ? 'Collapse Sidebar' : 'Expand Sidebar'}
+                    color={iconColor}
+                    _hover={{
+                        bg: 'transparent',
+                        color: 'blue.400',
+                    }}
+                >
+                    {isOpen ? <Icon as={FaChevronLeft as ElementType} sx={{ width: "16px", height: "16px" }} /> : <Icon as={FaChevronRight as ElementType} sx={{ width: "16px", height: "16px" }} />}
+                </IconButton>
+                <Box height="40px" />
+                <Box>
+                    <Button
+                        leftIcon={<Icon as={MdDashboard as ElementType} />}
+                        variant="ghost"
+                        color="white"
+                        justifyContent="flex-start"
+                        sx={{
+                            padding: '4px 8px',
+                            height: "30px"
+                        }}
+                        _hover={{ color: 'blue.400' }}
+                        onClick={navigateToDashboard}
+                    >
+                        Dashboard
+                    </Button>
+                </Box>
+                <Flex w="100%" position="relative" gap={4} alignItems="center">
+                    <Box>
+                        <Button
+                            leftIcon={<Icon as={FaProjectDiagram as ElementType} />}
+                            variant="ghost"
+                            color="white"
+                            justifyContent="flex-start"
+                            sx={{
+                                padding: '4px 8px',
+                                height: "30px",
+                                pointerEvents: "none"
+                            }}
+                        >
+                            Projects
+                        </Button>
+                    </Box>
                     {/* Plus Button */}
-                    <Flex position="absolute" direction={isOpen ? 'row' : 'column'} alignItems="center" height="100%" width="100%" top={isOpen ? 0 : 10} left={0}>
+                    <Flex position="absolute" direction={isOpen ? 'row' : 'column'} alignItems="center" justifyContent={"flex-end"} height="100%" width="100%" top={isOpen ? 0 : 12} right={0} gap={2}>
                         <IconButton
                             size="sm"
                             margin={0}
@@ -255,48 +318,11 @@ const Sidebar = () => {
                             />
                         </Tooltip>
                     </Flex>
-
-                    {/* Collapse Button */}
-                    <IconButton
-                        style={{ position: "absolute", top: "8px", right: "0px" }}
-                        size="sm"
-                        margin={0}
-                        padding={0}
-                        width="16px"
-                        variant="ghost"
-                        onClick={() => setIsOpen(!isOpen)}
-                        aria-label={isOpen ? 'Collapse Sidebar' : 'Expand Sidebar'}
-                        color={iconColor}
-                        _hover={{
-                            bg: 'transparent',
-                            color: 'blue.400',
-                        }}
-                    >
-                        {isOpen ? <Icon as={FaChevronLeft as ElementType} sx={{ width: "16px", height: "16px" }} /> : <Icon as={FaChevronRight as ElementType} sx={{ width: "16px", height: "16px" }} />}
-                    </IconButton>
-                </Box>
+                </Flex>
 
                 {isOpen && (
                     <>
                         <Divider orientation="horizontal" color={iconColor} />
-                        <Box padding="0 0 0 8px" width="100%">
-                            <Button
-                                leftIcon={<Icon as={MdDashboard as ElementType} />}
-                                variant="ghost"
-                                color="white"
-                                justifyContent="flex-start"
-                                width="100%"
-                                sx={{
-                                    padding: 0,
-                                    width: "100%",
-                                    height: "30px"
-                                }}
-                                _hover={{ color: 'blue.400' }}
-                                onClick={navigateToDashboard}
-                            >
-                                Dashboard
-                            </Button>
-                        </Box>
                         {/* Loading state */}
                         {isLoading && (
                             <VStack py={8} spacing={4}>
@@ -319,24 +345,6 @@ const Sidebar = () => {
                         {/* Projects list */}
                         {!isLoading && !error && (
                             <Flex width="100%" direction="column">
-                                <Box padding="0 0 0 8px" width="100%">
-                                    <Button
-                                        leftIcon={<Icon as={FaProjectDiagram as ElementType} />}
-                                        variant="ghost"
-                                        color="white"
-                                        justifyContent="flex-start"
-                                        width="100%"
-                                        sx={{
-                                            padding: 0,
-                                            width: "100%",
-                                            height: "30px",
-                                            pointerEvents: "none"
-                                        }}
-                                    // _hover={{ color: 'blue.400' }}
-                                    >
-                                        Projects
-                                    </Button>
-                                </Box>
                                 {projectsArrState.length === 0 ? (
                                     <VStack py={8} spacing={4}>
                                         <Text color="gray.400">No projects found</Text>
@@ -430,6 +438,7 @@ const Sidebar = () => {
 
 export default Sidebar;
 
+// Sub-components
 const ServerItem = ({ project, sqlServerInfo, toggleDatabase, expandedDatabases, onTableClick }) => {
     return (
         <ExpandableList
@@ -453,7 +462,7 @@ const ServerItem = ({ project, sqlServerInfo, toggleDatabase, expandedDatabases,
 };
 
 const DatabaseItem = ({ project, databaseInfo, sqlServerInfo, toggleDatabase, expandedDatabases, onTableClick }) => {
-    const { deleteTable } = useProjectStore(state => state)
+    const { deleteTable } = useProjectStore(state => state);
     const { user } = useAuth();
 
     // Create table items for the expandable list
