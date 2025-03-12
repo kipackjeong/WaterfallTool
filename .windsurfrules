@@ -5,3 +5,4 @@
 5. I'm using mssql lib to connect to SQL Databases
 6. The package manage I use is Yarn. So please use `yarn add <package>` instead of `npm install <package>`
 7. When calling Yarn package calls always call `nvm use node` first.
+8. This project is electron + next.js.
