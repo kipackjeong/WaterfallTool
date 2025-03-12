@@ -9,7 +9,7 @@ import { useProjectStore } from "../../lib/states/projectsState";
 import DatabaseConnectionForm from "./DatabaseConnectionForm";
 import { useInstanceStore } from "../../lib/states/instanceState";
 import { DarkModeSwitch } from "./DarkModeSwitch";
-import { FaPlus, FaChevronLeft, FaChevronRight, FaTable, FaSignOutAlt } from "react-icons/fa";
+import { FaPlus, FaChevronLeft, FaChevronRight, FaTable, FaSignOutAlt, FaHome } from "react-icons/fa";
 import { useAuth } from "../../lib/contexts/authContext";
 import _ from 'lodash';
 
@@ -198,6 +198,12 @@ const Sidebar = () => {
             [databaseName]: !prevState[databaseName],
         }));
     };
+
+    const navigateToDashboard = () => {
+        // Clear the instance state to show the dashboard
+        // Pass the user as the first argument and null as the second to clear the instance
+        setInstance(user, null);
+    };
     return (
         <>
             <DatabaseConnectionForm isOpen={showDatabaseForm} onSuccess={() => fetchProjects(false)} />
@@ -271,6 +277,19 @@ const Sidebar = () => {
                 {isOpen && (
                     <>
                         <Divider orientation="horizontal" color={iconColor} />
+                        <Box py={2} px={4} width="100%">
+                            <Button
+                                leftIcon={<Icon as={FaHome as ElementType} />}
+                                variant="ghost"
+                                color="white"
+                                justifyContent="flex-start"
+                                width="100%"
+                                _hover={{ bg: 'blue.700' }}
+                                onClick={navigateToDashboard}
+                            >
+                                Dashboard
+                            </Button>
+                        </Box>
                         {/* Loading state */}
                         {isLoading && (
                             <VStack py={8} spacing={4}>
@@ -292,7 +311,7 @@ const Sidebar = () => {
 
                         {/* Projects list */}
                         {!isLoading && !error && (
-                            <Flex direction="column">
+                            <Flex width="100%" direction="column">
                                 {projectsArrState.length === 0 ? (
                                     <VStack py={8} spacing={4}>
                                         <Text color="gray.400">No projects found</Text>
@@ -302,9 +321,9 @@ const Sidebar = () => {
                                     </VStack>
                                 ) : (
                                     projectsArrState.map((project, index) => (
-                                        <Flex key={index} direction="column" padding="8px 8px">
+                                        <Flex width="100%" key={index} direction="column" padding="8px 8px">
                                             <Text>{project?.name}</Text>
-                                            <Flex gap={3} direction="column" key={index}>
+                                            <Flex width="100%" gap={3} direction="column" key={index}>
                                                 {project?.sqlServers?.map((sqlServerInfo, index) => (
                                                     <ServerItem
                                                         key={index}
@@ -409,24 +428,17 @@ const DatabaseItem = ({ project, databaseInfo, sqlServerInfo, toggleDatabase, ex
     const { deleteTable } = useProjectStore(state => state)
     const { user } = useAuth();
 
-    // Create a custom title with the database icon
-    const databaseTitle = (
-        <Flex gap={2} alignItems="center">
-            <Icon as={HiOutlineArrowTurnDownRight as ElementType} />
-            <Icon as={GoDatabase as ElementType} />
-            <Text>{databaseInfo.name}</Text>
-        </Flex>
-    );
-
     // Create table items for the expandable list
     const tableItems = databaseInfo.tables.map((tableInfo, index) => (
-        <Flex
+        <Button
+            variant="ghost"
+            color="white"
             key={index}
             sx={{
-                width: '100%',
-                justifyContent: "space-between",
+                padding: 0,
+                height: '24px',
+                justifyContent: "flex-start",
                 alignItems: "center",
-                gap: 2,
                 cursor: "pointer",
                 position: "relative",
                 _hover: {
@@ -434,53 +446,54 @@ const DatabaseItem = ({ project, databaseInfo, sqlServerInfo, toggleDatabase, ex
                     ".delete-icon": {
                         display: "flex"
                     }
-                }
+                },
             }}
+            leftIcon={<Flex gap={2} alignItems="center"><Icon as={HiOutlineArrowTurnDownRight as ElementType} /><Icon as={FaTable as ElementType} /></Flex>}
             onClick={() => {
                 if (!user) return;
                 onTableClick(sqlServerInfo, databaseInfo, tableInfo)
             }}
         >
-            <Flex width="100%" gap={2} alignItems="center">
-                <Icon as={HiOutlineArrowTurnDownRight as ElementType} />
-                <Icon as={FaTable as ElementType} />
-                <Flex width="100%" justifyContent="space-between">
-                    <Text width="6rem" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">{tableInfo.name}</Text>
-                    <IconButton
-                        aria-label="Delete table"
-                        icon={<Icon as={IoClose as ElementType} fontSize="sm" />}
-                        size="sm"
-                        variant="ghost"
-                        colorScheme="orange"
-                        className="delete-icon"
-                        sx={{
+            <Flex gap={2} alignItems="center" onClick={() => {
+                if (!user) return;
+                onTableClick(sqlServerInfo, databaseInfo, tableInfo)
+            }}>
+                <Text width="fit-content" overflow="hidden" textAlign="left" textOverflow="ellipsis" whiteSpace="nowrap">{tableInfo.name}</Text>
+                <IconButton
+                    aria-label="Delete table"
+                    icon={<Icon as={IoClose as ElementType} fontSize="sm" />}
+                    size="sm"
+                    variant="ghost"
+                    colorScheme="orange"
+                    className="delete-icon"
+                    sx={{
+                        background: 'transparent',
+                        display: "none",
+                        minWidth: "auto",
+                        height: "auto",
+                        _hover: {
                             background: 'transparent',
-                            display: "none",
-                            minWidth: "auto",
-                            height: "auto",
-                            _hover: {
-                                background: 'transparent',
-                            }
-                        }}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (window.confirm(`Are you sure you want to delete table ${tableInfo.name}?`)) {
-                                deleteTable(project.id, sqlServerInfo.name, databaseInfo.name, tableInfo.name);
-                            }
-                        }}
-                    />
-                </Flex>
+                        }
+                    }}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm(`Are you sure you want to delete table ${tableInfo.name}?`)) {
+                            deleteTable(project.id, sqlServerInfo.name, databaseInfo.name, tableInfo.name);
+                        }
+                    }}
+                />
             </Flex>
-        </Flex>
+
+        </Button>
     ));
 
     return (
         <ExpandableList
-            title={databaseTitle}
+            title={databaseInfo.name}
+            titleIcon={GoDatabase as ElementType}
             items={tableItems}
             initialExpanded={expandedDatabases[databaseInfo.name] || true}
             onToggle={(expanded) => toggleDatabase(databaseInfo.name)}
-            showChevron={false}
             hoverColor="blue.400"
             deleteConfirmMessage={`Are you sure you want to delete database ${databaseInfo.name}?`}
         />
