@@ -25,7 +25,7 @@ const Sidebar = () => {
     const sideBarBGColor = colorMode === 'light' ? 'gray.800' : 'gray.700';
     const iconColor = 'white';
     const [expandedDatabases, setExpandedDatabases] = useState({});
-    const [sidebarWidth, setSidebarWidth] = useState(250); // Default width when open
+    const [sidebarWidth, setSidebarWidth] = useState(280); // Default width when open
     const [isResizing, setIsResizing] = useState(false);
 
     // Loading and polling states
@@ -203,10 +203,10 @@ const Sidebar = () => {
             <DatabaseConnectionForm isOpen={showDatabaseForm} onSuccess={() => fetchProjects(false)} />
             <MotionBox
                 position="relative"
-                height="100vh"
                 bg={sideBarBGColor}
                 color="white"
                 boxShadow="md"
+                height="100vh"
                 initial={{ width: "32px" }} // Initial width when closed
                 animate={{ width: isOpen ? sidebarWidth : "32px" }} // Animate width based on isOpen and sidebarWidth
                 transition={{ duration: isResizing ? 0 : 0.5 }} // No transition when resizing
@@ -441,10 +441,10 @@ const DatabaseItem = ({ project, databaseInfo, sqlServerInfo, toggleDatabase, ex
                 onTableClick(sqlServerInfo, databaseInfo, tableInfo)
             }}
         >
-            <Flex gap={2} alignItems="center">
+            <Flex width="100%" gap={2} alignItems="center">
                 <Icon as={HiOutlineArrowTurnDownRight as ElementType} />
                 <Icon as={FaTable as ElementType} />
-                <Flex>
+                <Flex width="100%" justifyContent="space-between">
                     <Text width="6rem" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">{tableInfo.name}</Text>
                     <IconButton
                         aria-label="Delete table"
@@ -455,7 +455,7 @@ const DatabaseItem = ({ project, databaseInfo, sqlServerInfo, toggleDatabase, ex
                         className="delete-icon"
                         sx={{
                             background: 'transparent',
-                            // display: "none",
+                            display: "none",
                             minWidth: "auto",
                             height: "auto",
                             _hover: {

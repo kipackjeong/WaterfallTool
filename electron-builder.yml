@@ -11,7 +11,6 @@ files:
   - "renderer/.next/**/*"
   - "renderer/out/**/*"
   - "renderer/public/**/*"
-# extraFiles:
   - from: "node_modules"
     to: "renderer/.next/server/pages/node_modules"
     filter:

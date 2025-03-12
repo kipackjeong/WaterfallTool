@@ -10,6 +10,10 @@ LAPTOP-Q87BCMTU
 - Use admin terminal 
   ```
   Get-Process -Id (Get-NetTCPConnection -LocalPort 8888).OwningProcess | Stop-Process
+
+  # Mac
+  lsof -i :3002 | grep LISTEN
+  kill -9 <pid>
   ```
 
 ### Get firebase JWT token
