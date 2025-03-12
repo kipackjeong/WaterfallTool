@@ -6,7 +6,7 @@ dist/
 app/
 renderer/.next
 server/**/*
-main/*.js
+main/**/*.js
 
 # Node.js dependencies
 node_modules/
