@@ -3,6 +3,10 @@ import App from '@/client/App'
 
 export default function HomePage() {
     return (
-        <App />
+        <div>
+
+            <title>Waterfall Tool</title>
+            <App />
+        </div>
     )
 }
