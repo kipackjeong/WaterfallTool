@@ -5,7 +5,8 @@ build/
 dist/
 app/
 renderer/.next
-server/
+server/**/*
+main/*.js
 
 # Node.js dependencies
 node_modules/
