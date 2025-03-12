@@ -6,6 +6,72 @@ import { createServer } from 'http';
 import { parse } from 'url';
 import next from 'next';
 import { NestJSServerManager } from './nestjs-server';
+import * as fs from 'fs';
+import * as path from 'path';
+
+// Set up logging to file for production debugging
+const setupLogging = () => {
+  const logDir = isDev ? path.join(__dirname, '../logs') : path.join(app.getPath('userData'), 'logs');
+
+  // Create logs directory if it doesn't exist
+  if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir, { recursive: true });
+  }
+
+  const logFile = path.join(logDir, `app-${new Date().toISOString().replace(/:/g, '-')}.log`);
+  console.log(`Logging to file: ${logFile}`);
+
+  // Create a write stream
+  const logStream = fs.createWriteStream(logFile, { flags: 'a' });
+
+  // Store original console methods
+  const originalConsole = {
+    log: console.log,
+    error: console.error,
+    warn: console.warn,
+    info: console.info
+  };
+
+  // Override console methods to write to file
+  console.log = function () {
+    const args = Array.from(arguments);
+    const timestamp = new Date().toISOString();
+    const message = `[${timestamp}] [LOG] ${args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : arg).join(' ')}`;
+    logStream.write(message + '\n');
+    originalConsole.log.apply(console, args);
+  };
+
+  console.error = function () {
+    const args = Array.from(arguments);
+    const timestamp = new Date().toISOString();
+    const message = `[${timestamp}] [ERROR] ${args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : arg).join(' ')}`;
+    logStream.write(message + '\n');
+    originalConsole.error.apply(console, args);
+  };
+
+  console.warn = function () {
+    const args = Array.from(arguments);
+    const timestamp = new Date().toISOString();
+    const message = `[${timestamp}] [WARN] ${args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : arg).join(' ')}`;
+    logStream.write(message + '\n');
+    originalConsole.warn.apply(console, args);
+  };
+
+  console.info = function () {
+    const args = Array.from(arguments);
+    const timestamp = new Date().toISOString();
+    const message = `[${timestamp}] [INFO] ${args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : arg).join(' ')}`;
+    logStream.write(message + '\n');
+    originalConsole.info.apply(console, args);
+  };
+
+  // Log uncaught exceptions
+  process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+  });
+
+  return logFile;
+};
 
 // Override spawn for debugging (unchanged)
 (function () {
@@ -22,15 +88,190 @@ import { NestJSServerManager } from './nestjs-server';
 
 // Prepare Next.js app (shared for dev and prod)
 const prepareNext = async (isDevMode: boolean) => {
+  // In development, use the local renderer directory
+  // In production, use the renderer directory from app.asar (not app.asar.unpacked)
+  let rendererDir = join(app.getAppPath(), 'renderer');
+  let foundValidPath = false;
+
+  // For production, check if we're in an asar package
+  if (!isDevMode) {
+    const appPath = app.getAppPath();
+    console.log('App path:', appPath);
+
+    // Enhanced debugging for production
+    const fs = require('fs');
+    console.log('Process resource path:', process.resourcesPath);
+    console.log('__dirname:', __dirname);
+
+    // Check if renderer directory exists at the current path
+    try {
+      const rendererExists = fs.existsSync(rendererDir);
+      console.log(`Renderer directory exists at ${rendererDir}:`, rendererExists);
+
+      if (rendererExists) {
+        foundValidPath = true;
+      }
+
+      // List files in app directory to debug
+      const appDirFiles = fs.readdirSync(app.getAppPath());
+      console.log('Files in app directory:', appDirFiles);
+    } catch (err) {
+      console.error('Error checking renderer directory:', err);
+    }
+
+    // If we're in an asar package, use the renderer directory directly from app.asar
+    if (appPath.includes('app.asar') && !foundValidPath) {
+      // No need to replace app.asar with app.asar.unpacked - use the path directly
+      rendererDir = join(appPath, 'renderer');
+      console.log('Using renderer directory from app.asar:', rendererDir);
+
+      // Check if this path exists
+      try {
+        const rendererExists = fs.existsSync(rendererDir);
+        console.log(`Renderer directory exists at ${rendererDir}:`, rendererExists);
+
+        if (rendererExists) {
+          // List files in renderer directory
+          const rendererFiles = fs.readdirSync(rendererDir);
+          console.log('Files in renderer directory:', rendererFiles);
+          foundValidPath = true;
+        }
+      } catch (err) {
+        console.error('Error checking renderer directory in app.asar:', err);
+      }
+
+      // Try alternative paths as fallback
+      if (!foundValidPath) {
+        const alternativePaths = [
+          join(appPath.replace('app.asar', 'app.asar.unpacked'), 'renderer'),
+          join(process.resourcesPath || '', 'app.asar.unpacked', 'renderer'),
+          join(process.resourcesPath || '', 'renderer'),
+          join(process.resourcesPath || '', 'app.asar', 'renderer')
+        ];
+
+        for (const path of alternativePaths) {
+          try {
+            const exists = fs.existsSync(path);
+            console.log(`Alternative path ${path} exists:`, exists);
+
+            if (exists) {
+              console.log('Found renderer at alternative path:', path);
+              rendererDir = path;
+              foundValidPath = true;
+              break;
+            }
+          } catch (err) {
+            console.error(`Error checking alternative path ${path}:`, err);
+          }
+        }
+      }
+    }
+  }
+
+  console.log('Using renderer directory:', rendererDir);
+  console.log('Found valid renderer path:', foundValidPath);
+
   const nextApp = next({
     dev: isDevMode,
-    dir: join(app.getAppPath(), 'renderer'),
+    dir: rendererDir,
     port: 3000, // Default port for Next.js, adjust if needed
   });
   const handle = nextApp.getRequestHandler();
   await nextApp.prepare();
   return { nextApp, handle };
 };
+
+// Initialize logging
+const logFilePath = setupLogging();
+console.log('Application starting...');
+console.log('Electron app version:', app.getVersion());
+console.log('Development mode:', isDev ? 'Yes' : 'No');
+console.log('Log file location:', logFilePath);
+
+// Make log file path available to the renderer process
+process.env.APP_LOG_FILE = logFilePath;
+
+// Create application menu with debugging options
+// const createAppMenu = (logPath: string) => {
+//   const template = [
+//     {
+//       label: 'File',
+//       submenu: [
+//         { role: 'quit' }
+//       ]
+//     },
+//     {
+//       label: 'View',
+//       submenu: [
+//         { role: 'reload' },
+//         { role: 'forceReload' },
+//         { role: 'toggleDevTools' },
+//         { type: 'separator' },
+//         { role: 'resetZoom' },
+//         { role: 'zoomIn' },
+//         { role: 'zoomOut' },
+//         { type: 'separator' },
+//         { role: 'togglefullscreen' }
+//       ]
+//     },
+//     {
+//       label: 'Debug',
+//       submenu: [
+//         {
+//           label: 'Open Log File',
+//           click: async () => {
+//             try {
+//               const exists = fs.existsSync(logPath);
+//               if (exists) {
+//                 await shell.openPath(logPath);
+//                 console.log('Opened log file:', logPath);
+//               } else {
+//                 dialog.showMessageBox({
+//                   type: 'error',
+//                   title: 'Error',
+//                   message: 'Log file not found',
+//                   detail: `Could not find log file at: ${logPath}`
+//                 });
+//               }
+//             } catch (err: any) {
+//               console.error('Error opening log file:', err);
+//               dialog.showErrorBox('Error Opening Log', `Failed to open log file: ${err.message}`);
+//             }
+//           }
+//         },
+//         {
+//           label: 'Show Log Location',
+//           click: async () => {
+//             try {
+//               const logDir = path.dirname(logPath);
+//               await shell.openPath(logDir);
+//               console.log('Opened log directory:', logDir);
+//             } catch (err: any) {
+//               console.error('Error opening log directory:', err);
+//               dialog.showErrorBox('Error', `Failed to open log directory: ${err.message}`);
+//             }
+//           }
+//         },
+//         {
+//           label: 'Show App Data Location',
+//           click: async () => {
+//             try {
+//               const userDataPath = app.getPath('userData');
+//               await shell.openPath(userDataPath);
+//               console.log('Opened user data directory:', userDataPath);
+//             } catch (err: any) {
+//               console.error('Error opening user data directory:', err);
+//               dialog.showErrorBox('Error', `Failed to open user data directory: ${err.message}`);
+//             }
+//           }
+//         }
+//       ]
+//     }
+//   ];
+
+//   const menu = Menu.buildFromTemplate(template as any);
+//   Menu.setApplicationMenu(menu);
+// };
 
 // Initialize server runner instance
 const nestJSServer = new NestJSServerManager(app);
@@ -73,20 +314,65 @@ app.on('ready', async () => {
   // });
 
   // Start Next.js server and load it into the window
-  const port = 3000; // Ensure this doesn’t conflict with NestJS (3002)
-  const { handle } = await prepareNext(isDev);
+  const port = 3000; // Ensure this doesn't conflict with NestJS (3002)
+  try {
+    console.log('Starting Next.js preparation...');
+    const { handle } = await prepareNext(isDev);
+    console.log('Next.js preparation completed successfully');
 
-  const nextServer = createServer((req: any, res: any) => {
-    const parsedUrl = parse(req.url, true);
-    handle(req, res, parsedUrl);
-  });
-
-  nextServer.listen(port, () => {
-    console.log(`> Next.js ready on http://localhost:${port}`);
-    mainWindow.loadURL(`http://localhost:${port}/`).catch((err) => {
-      console.error('Failed to load Next.js URL:', err);
+    const nextServer = createServer((req: any, res: any) => {
+      try {
+        const parsedUrl = parse(req.url, true);
+        console.log(`Handling request: ${req.method} ${req.url}`);
+        handle(req, res, parsedUrl);
+      } catch (err) {
+        console.error('Error handling request:', err);
+        res.statusCode = 500;
+        res.end('Internal Server Error');
+      }
     });
-  });
+
+    // Handle server errors before starting
+    nextServer.on('error', (err) => {
+      console.error('Next.js server error:', err);
+    });
+
+    nextServer.listen(port, () => {
+      console.log(`> Next.js ready on http://localhost:${port}`);
+
+      // Add a small delay to ensure the server is fully ready
+      setTimeout(() => {
+        console.log(`Attempting to load URL: http://localhost:${port}/`);
+
+        // Add event listener for page load errors
+        mainWindow.webContents.on('did-fail-load', (_, errorCode, errorDescription, validatedURL) => {
+          console.error(`Failed to load URL: ${validatedURL}`);
+          console.error(`Error code: ${errorCode}, Description: ${errorDescription}`);
+        });
+
+        // Add event listener for page load success
+        mainWindow.webContents.on('did-finish-load', () => {
+          console.log('Page loaded successfully!');
+        });
+
+        // Attempt to load the URL
+        mainWindow.loadURL(`http://localhost:${port}/`).then(() => {
+          console.log('LoadURL promise resolved successfully');
+        }).catch((err) => {
+          console.error('Failed to load Next.js URL:', err);
+
+          // Try alternative approach if standard loading fails
+          console.log('Trying alternative loading approach...');
+          mainWindow.loadFile(join(app.getAppPath(), 'renderer', '.next', 'server', 'pages', 'index.html')).catch(e => {
+            console.error('Alternative loading also failed:', e);
+          });
+        });
+      }, 2000); // Increased delay for better reliability
+    });
+  } catch (err) {
+    console.error('Failed to prepare Next.js:', err);
+    console.error('Error details:', err instanceof Error ? err.stack : String(err));
+  }
 
   // Open DevTools for debugging
   mainWindow.webContents.openDevTools();

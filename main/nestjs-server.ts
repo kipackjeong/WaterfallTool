@@ -26,18 +26,25 @@ export class NestJSServerManager {
     if (this.isProduction) {
       // Get the app path and convert it from asar to real path if needed
       const appPath = this.electronApp!.getAppPath();
+      console.log('App path:', appPath);
+      
+      // Based on electron-builder.yml, server is unpacked from asar
+      // The correct path should be in app.asar.unpacked/server
       const basePath = appPath.replace(/app\.asar$/, 'app.asar.unpacked');
-
-      // Try multiple possible locations for production build
+      console.log('Base path for unpacked content:', basePath);
+      
+      // Try multiple possible locations for production build, prioritizing the paths
+      // that match our electron-builder.yml configuration
       const possiblePaths = [
-        path.join(basePath, 'server'),                  // Unpacked from ASAR
-        path.join(appPath, 'server'),                  // Within ASAR (not working as cwd)
-        path.join(process.resourcesPath, 'server'),    // Electron resources
-        path.join(process.resourcesPath, 'app/server'),// Another common location
-        path.join(process.resourcesPath, 'app.asar.unpacked/server') // Electron resources unpacked
+        path.join(basePath, 'server'),                   // Unpacked from ASAR (primary location)
+        path.join(process.resourcesPath || '', 'app.asar.unpacked/server'), // Alternative unpacked location
+        path.join(process.resourcesPath || '', 'server'), // Directly in resources
+        path.join(appPath, 'server'),                    // Within ASAR (not ideal for cwd)
+        path.join(process.resourcesPath || '', 'app/server') // Another common location
       ];
 
       // Find the first path that exists and is a directory
+      let foundValidPath = false;
       for (const possiblePath of possiblePaths) {
         console.log(`Checking server path: ${possiblePath}`);
         try {
@@ -45,8 +52,36 @@ export class NestJSServerManager {
           const stats = fs.statSync(possiblePath);
           if (stats.isDirectory()) {
             console.log(`Found valid server directory: ${possiblePath}`);
-            this.serverPath = possiblePath;
-            break;
+            
+            // List the contents of the directory for debugging
+            try {
+              const files = fs.readdirSync(possiblePath);
+              console.log(`Contents of ${possiblePath}:`, files);
+              
+              // Check if dist directory exists
+              const distPath = path.join(possiblePath, 'dist');
+              if (fs.existsSync(distPath)) {
+                console.log(`Found dist directory at ${distPath}`);
+                const distFiles = fs.readdirSync(distPath);
+                console.log(`Contents of ${distPath}:`, distFiles);
+                
+                // Check for main.js
+                const mainJsPath = path.join(distPath, 'main.js');
+                if (fs.existsSync(mainJsPath)) {
+                  console.log(`Found main.js at ${mainJsPath}`);
+                  foundValidPath = true;
+                }
+              }
+            } catch (err) {
+              console.error(`Error listing directory ${possiblePath}:`, err);
+            }
+            
+            if (foundValidPath) {
+              this.serverPath = possiblePath;
+              break;
+            } else {
+              console.log(`Directory exists but doesn't contain required files: ${possiblePath}`);
+            }
           }
         } catch (err) {
           // Path doesn't exist or can't be accessed
@@ -58,6 +93,7 @@ export class NestJSServerManager {
       if (!this.serverPath) {
         this.serverPath = path.join(basePath, 'server');
         console.warn(`Server directory not found in any expected location, using default: ${this.serverPath}`);
+        console.warn('This may cause issues starting the server in production.');
       }
     } else {
       // Development mode - server is in project root
@@ -117,36 +153,80 @@ export class NestJSServerManager {
         // Command to run based on environment
         let command = '';
         let args: string[] = [];
+        let mainJsPath = '';
 
         if (this.isProduction) {
-          command = 'node';
-          const mainJsPath = path.join(this.serverPath!, 'dist/main.js');
+          // In production, we need to use the node executable
+          // First, try to find node in standard locations
+          const possibleNodePaths = [
+            // Standard node executable
+            'node',
+            // Try to find a bundled node executable
+            path.join(process.resourcesPath || '', 'node'),
+            // Try system paths
+            '/usr/bin/node',
+            '/usr/local/bin/node',
+            // Windows paths
+            'C:\\Program Files\\nodejs\\node.exe',
+            'C:\\Program Files (x86)\\nodejs\\node.exe'
+          ];
+          
+          // Find a working node executable
+          let nodeFound = false;
+          for (const nodePath of possibleNodePaths) {
+            try {
+              // Try to execute node --version to check if it works
+              const testResult = require('child_process').spawnSync(nodePath, ['--version']);
+              if (testResult.status === 0) {
+                command = nodePath;
+                nodeFound = true;
+                console.log(`Found working node executable at: ${nodePath}`);
+                break;
+              }
+            } catch (err) {
+              // This node path doesn't work, try the next one
+              console.log(`Node path not valid: ${nodePath}`);
+            }
+          }
+          
+          if (!nodeFound) {
+            command = 'node'; // Fallback to default node command
+            console.warn('Could not verify a working node executable, using default "node" command');
+          }
+          
+          // Now find the main.js file
+          mainJsPath = path.join(this.serverPath!, 'dist/main.js');
 
           // Verify that the main.js file exists
           if (!fs.existsSync(mainJsPath)) {
-            console.error(`Server main.js not found at: ${mainJsPath}`);
-            // Try to find it
+            console.error(`Server main.js not found at expected path: ${mainJsPath}`);
+            // Try to find it in alternative locations
             const possiblePaths = [
               path.join(this.serverPath!, 'main.js'),
               path.join(this.serverPath!, 'dist/src/main.js'),
-              path.join(app.getAppPath(), 'server/dist/main.js')
+              path.join(this.serverPath!, 'dist/server/main.js'),
+              path.join(app.getAppPath(), 'server/dist/main.js'),
+              path.join(process.resourcesPath || '', 'app.asar.unpacked/server/dist/main.js')
             ];
 
+            let mainJsFound = false;
             for (const possiblePath of possiblePaths) {
               console.log(`Checking for server main.js at: ${possiblePath}`);
               if (fs.existsSync(possiblePath)) {
                 console.log(`Found server main.js at: ${possiblePath}`);
-                args = [possiblePath];
+                mainJsPath = possiblePath;
+                mainJsFound = true;
                 break;
               }
             }
 
-            if (args.length === 0) {
+            if (!mainJsFound) {
               return reject(new Error(`Server main.js not found at any expected location`));
             }
-          } else {
-            args = [mainJsPath];
           }
+          
+          args = [mainJsPath];
+          console.log(`Using node command: ${command} ${args.join(' ')}`);
         } else {
           // Development mode
           command = path.join(this.serverPath!, 'node_modules/.bin/nest');
@@ -154,60 +234,115 @@ export class NestJSServerManager {
         }
 
         // Environment variables for the process
+        // Using type assertion to work around read-only properties
         const env = {
           ...process.env,
-          PORT: this.serverPort.toString(),
-        };
+          PORT: this.serverPort.toString()
+        } as NodeJS.ProcessEnv;
+        
+        // Set NODE_ENV using type assertion to bypass readonly restriction
+        if (this.isProduction) {
+          (env as any).NODE_ENV = 'production';
+        } else {
+          (env as any).NODE_ENV = 'development';
+        }
 
         console.log('[DEBUG] this.serverPath:', this.serverPath);
+        console.log('[DEBUG] Command:', command);
+        console.log('[DEBUG] Args:', args);
+        console.log('[DEBUG] Environment:', { PORT: env.PORT, NODE_ENV: env.NODE_ENV });
 
         // Verify the server path exists and is a directory
         try {
-          const stats = fs.statSync(this.serverPath!);
+          if (!this.serverPath) {
+            return reject(new Error('Server path is not defined'));
+          }
+          
+          const stats = fs.statSync(this.serverPath);
           if (!stats.isDirectory()) {
             return reject(new Error(`Server path is not a directory: ${this.serverPath}`));
           }
         } catch (err: any) {
-          return reject(new Error(`Server path not accessible: ${this.serverPath} (${err.message})`));
+          return reject(new Error(`Server path not accessible: ${this.serverPath || 'undefined'} (${err.message})`));
         }
 
         // Spawn the process
         try {
+          if (!this.serverPath) {
+            return reject(new Error('Server path is not defined for process spawn'));
+          }
+          
           this.serverProcess = spawn(command, args, {
-            cwd: this.serverPath!,
+            cwd: this.serverPath,
             env,
             stdio: 'pipe', // Capture output
+            shell: this.isProduction // Use shell in production to handle path issues
           });
+          
+          console.log(`Server process spawned with PID: ${this.serverProcess?.pid || 'unknown'}`);
         } catch (err: any) {
+          console.error(`Failed to spawn NestJS server:`, err);
           return reject(new Error(`Failed to spawn NestJS server: ${err.message}`));
         }
 
         // Handle output
+        if (!this.serverProcess) {
+          return reject(new Error('Server process is null after spawn'));
+        }
+        
+        let serverOutput = '';
+        let errorOutput = '';
+        
         this.serverProcess.stdout?.on('data', (data) => {
           const output = data.toString();
+          serverOutput += output;
           console.log(`NestJS server: ${output}`);
 
           // Detect when server is ready
-          if (output.includes('Application is running on')) {
+          if (output.includes('Application is running on') || 
+              output.includes('Nest application successfully started') ||
+              output.includes('Listening on port')) {
             console.log(`NestJS server is ready at ${this.serverUrl}`);
             resolve();
           }
         });
 
         this.serverProcess.stderr?.on('data', (data) => {
-          console.error(`NestJS server error: ${data.toString()}`);
+          const error = data.toString();
+          errorOutput += error;
+          console.error(`NestJS server error: ${error}`);
+          
+          // Check for common errors that indicate the server won't start
+          if (error.includes('EADDRINUSE') || 
+              error.includes('port is already in use')) {
+            reject(new Error(`Port ${this.serverPort} is already in use. Please close other applications using this port or change the port number.`));
+          }
         });
 
         // Handle process exit
         this.serverProcess.on('close', (code) => {
           console.log(`NestJS server exited with code ${code}`);
-          this.serverProcess = null;
-
-          // If process exits unexpectedly and we didn't call stop(), try to restart
-          if (code !== 0 && this.serverProcess !== null) {
-            console.log('NestJS server exited unexpectedly, restarting...');
-            this.start().catch(console.error);
+          
+          // If server exited with error and we didn't get a specific error message
+          if (code !== 0 && !errorOutput) {
+            console.error('Server exited with error but no error output was captured');
           }
+          
+          // If server exited before we detected it was ready
+          if (code !== null && code !== 0) {
+            console.error(`Server failed to start properly. Exit code: ${code}`);
+            console.error('Last server output:', serverOutput.slice(-500)); // Show last 500 chars of output
+            console.error('Error output:', errorOutput);
+            reject(new Error(`Server failed to start properly. Exit code: ${code}`));
+          }
+          
+          this.serverProcess = null;
+        });
+        
+        // Handle unexpected errors
+        this.serverProcess.on('error', (err) => {
+          console.error('Server process error:', err);
+          reject(new Error(`Server process error: ${err.message}`));
         });
 
         // Set a timeout in case the server doesn't start properly
