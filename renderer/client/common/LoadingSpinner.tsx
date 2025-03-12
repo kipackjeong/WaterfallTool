@@ -6,6 +6,7 @@ interface LoadingSpinnerProps {
   zIndex?: number;
   position?: 'fixed' | 'absolute';
   backgroundColor?: string;
+  top?: number | string;
 }
 
 /**
@@ -16,15 +17,16 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   size = 'xl',
   zIndex = 1000,
   position = 'absolute',
+  top = 0,
   backgroundColor = 'rgba(255, 255, 255, 0.7)',
 }) => (
-  <Flex>
+  <Flex sx={{ width: "100%", height: "100%" }}>
     <Flex
       sx={{
         width: "100%",
         height: "100%",
         position,
-        top: 0,
+        top,
         left: 0,
         right: 0,
         bottom: 0,

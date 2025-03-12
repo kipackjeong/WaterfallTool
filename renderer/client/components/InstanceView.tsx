@@ -358,9 +358,9 @@ const InstanceView = () => {
                   boxShadow: '0 0 5px rgba(0, 0, 0, 0.15)',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  zIndex: 999,
+                  zIndex: 101,
                   _hover: {
-                    width: '28px',
+                    width: '20px',
                   }
                 }}
                 onClick={() => setIsVerticalDrawerOpen(!isVerticalDrawerOpen)}
@@ -403,7 +403,6 @@ const InstanceView = () => {
               background: `linear-gradient(to bottom, transparent, ${pullDownBarColor})`,
               zIndex: 101,
             }}
-            onClick={() => setIsDrawerOpen(!isDrawerOpen)}
           >
             {/* Bottom drawer handle */}
             <Box
@@ -419,12 +418,19 @@ const InstanceView = () => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 -2px 5px rgba(0, 0, 0, 0.15)',
+                boxShadow: '0 2px 5px rgba(0, 0, 0, 0.15)',
+                cursor: 'pointer',
                 transition: 'all 0.2s ease',
+                zIndex: 101,
                 _hover: {
-                  height: '28px',
+                  height: '20px',
+                  boxShadow: '0 3px 8px rgba(0, 0, 0, 0.2)',
+                },
+                _active: {
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3)',
                 }
               }}
+              onClick={() => setIsDrawerOpen(!isDrawerOpen)}
             >
               <Icon color="white" boxSize={4}>
                 {isDrawerOpen ? <ChevronUpIcon /> : <ChevronDownIcon />}
@@ -448,12 +454,12 @@ const InstanceView = () => {
           top: 0,
           left: 0,
           right: 0,
-          zIndex: 100, // Ensure it’s above other content
+          zIndex: 99, // Ensure it’s above other content
         }}
       >
 
         {/* Main content (shifted down to avoid overlap) */}
-        <Flex sx={{ width: "100%", height: "100%" }} direction="column" alignItems="center" justifyContent="center" p={4} gap={4}> {/* Increased padding to account for the visible drawer portion */}
+        <Flex sx={{ width: "100%", height: "100%" }} direction="column" alignItems="center" justifyContent="center" px={4} py={2}> {/* Increased padding to account for the visible drawer portion */}
           {/* Distribution line for grok */}
           <MappingsStoreProvider>
             <MappingsView />

@@ -7,63 +7,6 @@ import apiClient from '../api/apiClient';
 import * as _ from 'lodash';
 import { getAuthHeaders } from '../utils/authUtils';
 
-// Storage helper functions
-const storageHelpers = {
-  // Session Storage (cleared when browser is closed)
-  session: {
-    getItem: (key: string): any => {
-      try {
-        const item = sessionStorage.getItem(key);
-        return item ? JSON.parse(item) : null;
-      } catch (err) {
-        console.error('Error getting item from sessionStorage:', err);
-        return null;
-      }
-    },
-    setItem: (key: string, value: any): void => {
-      try {
-        sessionStorage.setItem(key, JSON.stringify(value));
-      } catch (err) {
-        console.error('Error setting item in sessionStorage:', err);
-      }
-    },
-    removeItem: (key: string): void => {
-      try {
-        sessionStorage.removeItem(key);
-      } catch (err) {
-        console.error('Error removing item from sessionStorage:', err);
-      }
-    }
-  },
-
-  // Local Storage (persists even when browser is closed)
-  local: {
-    getItem: (key: string): any => {
-      try {
-        const item = localStorage.getItem(key);
-        return item ? JSON.parse(item) : null;
-      } catch (err) {
-        console.error('Error getting item from localStorage:', err);
-        return null;
-      }
-    },
-    setItem: (key: string, value: any): void => {
-      try {
-        localStorage.setItem(key, JSON.stringify(value));
-      } catch (err) {
-        console.error('Error setting item in localStorage:', err);
-      }
-    },
-    removeItem: (key: string): void => {
-      try {
-        localStorage.removeItem(key);
-      } catch (err) {
-        console.error('Error removing item from localStorage:', err);
-      }
-    }
-  }
-};
-
 //Zustand stuff
 export type MappingsArrState = {
   mappingsArrState: MappingsViewModel[]
@@ -74,15 +17,15 @@ export type MappingsActions = {
   setMappingsArrState: (user, instanceViewState: InstanceViewModel) => Promise<void>
   addMapping: (newMapping: MappingsViewModel) => void
   modifyWaterfallGroup: (mappingIndex: number, rowIndex: number, newWaterfallGroup: string) => void
-  upsyncMappings: () => Promise<void>
+  upsyncMappings: (instanceViewState: InstanceViewModel) => Promise<void>
   refreshMappingsArrState: (user, instanceViewState: InstanceViewModel) => Promise<void>
 }
 
 export type MappingsStore = MappingsArrState & MappingsActions & {
   // Storage operations
-  saveToLocalStorage: () => void;
-  loadFromLocalStorage: () => boolean;
-  clearLocalStorage: () => void;
+  saveToLocalStorage: (instanceViewState: InstanceViewModel) => void;
+  loadFromLocalStorage: (instanceViewState: InstanceViewModel) => boolean;
+  clearLocalStorage: (instanceViewState: InstanceViewModel) => void;
 }
 
 export const defaultInitState: MappingsArrState = {
@@ -100,6 +43,8 @@ export const createMappingsStore = (
           return {
             ...initState,
             initMappingsArrState: async (user, instanceViewState: InstanceViewModel) => {
+              // Load mappings from localStorage with the instance view state
+              // get().loadFromLocalStorage(instanceViewState);
             },
 
             setMappingsArrState: async (user, instanceViewState: InstanceViewModel) => {
@@ -145,29 +90,32 @@ export const createMappingsStore = (
                 return newState;
               })
             },
-            upsyncMappings: async () => {
-              get().saveToLocalStorage();
+            upsyncMappings: async (instanceViewState: InstanceViewModel) => {
+              const state = get();
+              state.saveToLocalStorage(instanceViewState);
             },
-            // Local storage operations
-            saveToLocalStorage: () => {
+
+            saveToLocalStorage: (instanceViewState: InstanceViewModel) => {
               try {
                 const state = get();
-                storageHelpers.local.setItem('mappings_local_storage', state.mappingsArrState);
-                console.log('Saved mappings to localStorage');
+                const storageKey = `mappings_${instanceViewState.server}_${instanceViewState.database}_${instanceViewState.table}`;
+                localStorage.setItem(storageKey, JSON.stringify(state.mappingsArrState));
+                console.log(`Saved mappings to localStorage with key: ${storageKey}`);
               } catch (err) {
                 console.error('Error saving to localStorage:', err);
               }
             },
 
-            loadFromLocalStorage: () => {
+            loadFromLocalStorage: (instanceViewState: InstanceViewModel) => {
               try {
-                const savedState = storageHelpers.local.getItem('mappings_local_storage');
+                const storageKey = `mappings_${instanceViewState.server}_${instanceViewState.database}_${instanceViewState.table}`;
+                const savedState = localStorage.getItem(storageKey);
                 if (savedState) {
                   set(state => ({
                     ...state,
-                    mappingsArrState: savedState
+                    mappingsArrState: JSON.parse(savedState)
                   }));
-                  console.log('Loaded mappings from localStorage');
+                  console.log(`Loaded mappings from localStorage with key: ${storageKey}`);
                   return true;
                 }
                 return false;
@@ -177,59 +125,54 @@ export const createMappingsStore = (
               }
             },
 
-            clearLocalStorage: () => {
+            clearLocalStorage: (instanceViewState: InstanceViewModel) => {
               try {
-                storageHelpers.local.removeItem('mappings_local_storage');
-                console.log('Cleared mappings from localStorage');
+                const storageKey = `mappings_${instanceViewState.server}_${instanceViewState.database}_${instanceViewState.table}`;
+                localStorage.removeItem(storageKey);
+                console.log(`Cleared mappings from localStorage with key: ${storageKey}`);
               } catch (err) {
                 console.error('Error clearing localStorage:', err);
               }
-            },
-
-            // Legacy method - kept for backward compatibility
-            saveMappingsToIndexedDB: async () => set((prevState) => {
-              try {
-                // Save to localStorage instead
-                storageHelpers.local.setItem('mappings_local_storage', prevState.mappingsArrState);
-              } catch (err) {
-                console.error("Error saving mappings state:", err);
-              }
-              const newState = _.cloneDeep(prevState);
-              return newState;
-            }),
-
+            }
           }
         },
         {
           name: 'mappings-storage',
-          getStorage: () => ({
-            getItem: (name: string): string | null => {
+          storage: {
+            getItem: (name) => {
               try {
-                return sessionStorage.getItem(name);
+                const str = localStorage.getItem(name);
+                return str ? Promise.resolve(JSON.parse(str)) : Promise.resolve(null);
               } catch (err) {
                 console.error('Error getting item from storage:', err);
-                return null;
+                return Promise.resolve(null);
               }
             },
-            setItem: (name: string, value: string): void => {
+            setItem: (name, value) => {
               try {
-                sessionStorage.setItem(name, value);
+                localStorage.setItem(name, JSON.stringify(value));
+                return Promise.resolve();
               } catch (err) {
                 console.error('Error setting item in storage:', err);
+                return Promise.resolve();
               }
             },
-            removeItem: (name: string): void => {
+            removeItem: (name) => {
               try {
-                sessionStorage.removeItem(name);
+                localStorage.removeItem(name);
+                return Promise.resolve();
               } catch (err) {
                 console.error('Error removing item from storage:', err);
+                return Promise.resolve();
               }
             }
-          })
+          }
         }
       )
-    ))
+    )
+  )
 }
+
 async function _getMappingData(user, instanceViewState: InstanceViewModel, keyword: string): Promise<MappingsViewModel[]> {
   const query =
     `
@@ -267,20 +210,20 @@ async function _getMappingData(user, instanceViewState: InstanceViewModel, keywo
 
     // Check if we have this data in sessionStorage
     try {
-      // First try sessionStorage (faster)
-      const cachedData = storageHelpers.session.getItem(cacheKey);
+      // First try localStorage (faster)
+      const cachedData = localStorage.getItem(cacheKey);
       if (cachedData) {
-        console.log(`Using cached data from sessionStorage for mapping query: ${keyword}`);
-        return cachedData;
+        console.log(`Using cached data from localStorage for mapping query: ${keyword}`);
+        return JSON.parse(cachedData);
       }
 
       // Then try localStorage (more persistent)
-      const localData = storageHelpers.local.getItem(cacheKey);
+      const localData = localStorage.getItem(cacheKey);
       if (localData) {
         console.log(`Using cached data from localStorage for mapping query: ${keyword}`);
         // Also save to sessionStorage for faster access next time
-        storageHelpers.session.setItem(cacheKey, localData);
-        return localData;
+        sessionStorage.setItem(cacheKey, localData);
+        return JSON.parse(localData);
       }
     } catch (cacheErr) {
       console.error('Error accessing storage cache:', cacheErr);
@@ -304,8 +247,8 @@ async function _getMappingData(user, instanceViewState: InstanceViewModel, keywo
     try {
       const cacheKey = `mapping_cache_${instanceViewState.server}_${instanceViewState.database}_${instanceViewState.table}_${keyword}_${query.replace(/\s+/g, '')}`;
       // Save to both storage types
-      storageHelpers.session.setItem(cacheKey, data);
-      storageHelpers.local.setItem(cacheKey, data);
+      localStorage.setItem(cacheKey, JSON.stringify(data));
+      sessionStorage.setItem(cacheKey, JSON.stringify(data));
     } catch (cacheErr) {
       console.error('Error caching mapping response:', cacheErr);
       // Continue even if caching fails
@@ -371,17 +314,14 @@ export const MappingsStoreProvider = ({ children }: MappingsStoreProviderProps) 
     storeRef.current = createMappingsStore()
   }
 
-  // Try to load from localStorage when component mounts
+  // We'll load from localStorage when the instance is set, not on component mount
+  // The loadFromLocalStorage function will be called from initMappingsArrState
   useEffect(() => {
     try {
       const store = storeRef.current;
       if (store) {
-        // First check if we have data in sessionStorage (from persist middleware)
-        // If not, try to load from localStorage as a fallback
-        const currentState = store.getState();
-        if (!currentState.mappingsArrState || currentState.mappingsArrState.length === 0) {
-          store.getState().loadFromLocalStorage();
-        }
+        // We'll wait for the instance view state to be set before loading
+        console.log('MappingsStoreProvider mounted, waiting for instance state');
       }
     } catch (err) {
       console.error('Error initializing storage:', err);

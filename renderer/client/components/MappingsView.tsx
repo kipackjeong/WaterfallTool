@@ -45,13 +45,7 @@ const MappingsView: React.FC = () => {
 
         setTimeout(() => {
             _setLoading(false);
-            setTimeout(() => {
-                _setLoading(true);
-                setTimeout(() => {
-                    _setLoading(false);
-                }, 500)
-            }, 500);
-        }, 500);
+        }, 2000);
 
     };
 
@@ -116,7 +110,7 @@ const MappingsView: React.FC = () => {
     // Upload mappings to server with feedback
     const handleUpload = async () => {
         try {
-            await upsyncMappings();
+            await upsyncMappings(instanceViewState);
             toast({
                 title: 'Success',
                 description: 'Mappings saved to database successfully.',
@@ -142,85 +136,82 @@ const MappingsView: React.FC = () => {
 
     // Main render with tabs and table
     return (
-        <Tabs variant="line" colorScheme="blue" sx={{
-            width: "100%",
-            height: "100%",
-        }}>
-            <Flex sx={{
-                flexDirection: "column",
-                width: "100%", height: "100%",
+        !mappingsArrState || _loading) ?
+        <div style={{ width: "100%", height: "500px" }}>
+            <LoadingSpinner />
+        </div>
+        : (
+            <Tabs variant="line" colorScheme="blue" sx={{
+                width: "100%",
+                height: "100%",
             }}>
-                {(!mappingsArrState || _loading) ?
-                    <div style={{ width: "100vw", height: "100vh" }}>
-                        <LoadingSpinner />
-                    </div>
-                    : (
-                        <>
-                            <TabList sx={{ position: "relative", borderColor: tabBorderColor }}>
-                                {mappingsArrState.map((mapping, mappingIndex) => (
-                                    <Tab key={mappingIndex}>{mapping.tabName}</Tab>
-                                ))}
-                            </TabList>
-                            <TabPanels flex={1}>
-                                {mappingsArrState.map((mapping, mappingIndex) => (
-                                    <TabPanel key={mappingIndex} sx={{ padding: 0 }}>
-                                        <Flex direction="row" sx={{ margin: 0, position: "relative", height: "44px", justifyContent: "center", alignItems: "center" }}>
+                <Flex sx={{
+                    flexDirection: "column",
+                    width: "100%", height: "100%",
+                }}>
+                    <TabList sx={{ position: "relative", borderColor: tabBorderColor }}>
+                        {mappingsArrState.map((mapping, mappingIndex) => (
+                            <Tab key={mappingIndex}>{mapping.tabName}</Tab>
+                        ))}
+                    </TabList>
+                    <TabPanels flex={1}>
+                        {mappingsArrState.map((mapping, mappingIndex) => (
+                            <TabPanel key={mappingIndex} sx={{ padding: 0 }}>
+                                <Flex direction="row" sx={{ margin: 0, position: "relative", height: "44px", justifyContent: "center", alignItems: "center" }}>
 
-                                            <Text sx={{ flex: 1, margin: 0 }} fontSize="sm" textAlign="center" mb={2}>
-                                                {mapping.data.length} entities found.
-                                            </Text>
-                                        </Flex>
-                                        <MappingTable
-                                            mapping={mapping}
-                                            mappingIndex={mappingIndex}
-                                            modifyWaterfallGroup={modifyWaterfallGroup}
-                                        />
-                                        <Flex sx={{ position: "absolute", top: 0, right: 0, bottom: '10%', gap: 1 }}>
-                                            <Tooltip label="Refresh Mapping">
-                                                <IconButton
-                                                    onClick={() => fetchMappingsViewsState()}
-                                                    size="sm"
-                                                    colorScheme="blue"
-                                                    variant="outline"
-                                                    aria-label="Refresh Mapping Button"
-                                                >
-                                                    <Icon as={FaSync as ElementType} />
-                                                </IconButton>
-                                            </Tooltip>
-                                            <Tooltip label="Upload Mapping">
-                                                <IconButton
-                                                    onClick={handleUpload}
-                                                    size="sm"
-                                                    colorScheme="blue"
-                                                    variant="outline"
-                                                    aria-label="Upload Mapping Button"
-                                                >
-                                                    <Icon as={FaUpload as ElementType} />
-                                                </IconButton>
-                                            </Tooltip>
-                                            <Tooltip
-                                                label="Download Excel">
-                                                <IconButton
-                                                    onClick={() => handleExport(mapping)}
-                                                    size="sm"
-                                                    colorScheme="blue"
-                                                    variant="outline"
-                                                    aria-label="Download Excel Button"
-                                                >
-                                                    <Icon as={FaDownload as ElementType} />
-                                                </IconButton>
-                                            </Tooltip>
+                                    <Text sx={{ flex: 1, margin: 0 }} fontSize="sm" textAlign="center" mb={2}>
+                                        {mapping.data.length} entities found.
+                                    </Text>
+                                </Flex>
+                                <MappingTable
+                                    mapping={mapping}
+                                    mappingIndex={mappingIndex}
+                                    modifyWaterfallGroup={modifyWaterfallGroup}
+                                />
+                                <Flex sx={{ position: "absolute", top: 0, right: 0, bottom: '10%', gap: 1 }}>
+                                    <Tooltip label="Refresh Mapping">
+                                        <IconButton
+                                            onClick={() => fetchMappingsViewsState()}
+                                            size="sm"
+                                            colorScheme="blue"
+                                            variant="outline"
+                                            aria-label="Refresh Mapping Button"
+                                        >
+                                            <Icon as={FaSync as ElementType} />
+                                        </IconButton>
+                                    </Tooltip>
+                                    <Tooltip label="Upload Mapping">
+                                        <IconButton
+                                            onClick={handleUpload}
+                                            size="sm"
+                                            colorScheme="blue"
+                                            variant="outline"
+                                            aria-label="Upload Mapping Button"
+                                        >
+                                            <Icon as={FaUpload as ElementType} />
+                                        </IconButton>
+                                    </Tooltip>
+                                    <Tooltip
+                                        label="Download Excel">
+                                        <IconButton
+                                            onClick={() => handleExport(mapping)}
+                                            size="sm"
+                                            colorScheme="blue"
+                                            variant="outline"
+                                            aria-label="Download Excel Button"
+                                        >
+                                            <Icon as={FaDownload as ElementType} />
+                                        </IconButton>
+                                    </Tooltip>
 
-                                        </Flex>
-                                    </TabPanel>
-                                ))}
-                            </TabPanels>
-                        </>
-                    )}
-            </Flex>
+                                </Flex>
+                            </TabPanel>
+                        ))}
+                    </TabPanels>
+                </Flex>
 
-        </Tabs>
-    );
+            </Tabs>
+        );
 };
 
 export default MappingsView;
