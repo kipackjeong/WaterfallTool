@@ -10,6 +10,7 @@ import { createMappingsStore } from './mappingsState'
 
 export type InstanceState = {
     InstanceState: InstanceViewModel
+    IsUpdatingInstanceState: boolean
 }
 
 export type InstanceActions = {
@@ -23,97 +24,111 @@ export type InstanceStore = InstanceState & InstanceActions
 export const createInstanceStore = (
     initState: InstanceState = {
         InstanceState: null,
+        IsUpdatingInstanceState: true,
     },
 ) => {
     return createStore<InstanceStore>()(
         devtools(
             persist(
-                (set) => ({
-                    ...initState,
-                    initInstance: async (InstanceState: InstanceViewModel) => {
+                (set) => {
+                    // Define the store methods outside the return object
+                    const _switchIsUpdatingInstanceState = (isUpdating: boolean) => {
                         set(prevState => {
                             const newState = _.cloneDeep(prevState);
-                            newState.InstanceState = InstanceState;
+                            newState.IsUpdatingInstanceState = isUpdating;
                             return newState;
                         });
-                    },
+                    };
 
-                    setInstance: async (user, newInstanceState: InstanceViewModel) => {
-                        // Try to load from sessionStorage first
-                        try {
-                            const stateKey = `instance_state_${newInstanceState.server}_${newInstanceState.database}_${newInstanceState.table}`;
-                            const savedState = sessionStorage.getItem(stateKey);
-                            
-                            if (savedState) {
-                                const parsedState = JSON.parse(savedState);
-                                console.log('Loaded state from sessionStorage:', parsedState);
-                                
-                                set(prevState => {
-                                    const newState = _.cloneDeep(prevState);
-                                    newState.InstanceState = parsedState;
-                                    return newState;
-                                });
-                                
-                                // Return early if we have saved state
-                                return;
-                            }
-                        } catch (err) {
-                            console.error('Error loading state from sessionStorage:', err);
-                        }
-                        // Utility function to execute SQL queries and handle errors consistently
-                        const executeQuery = async (user, instanceView: InstanceViewModel, query: string, errorMessage: string): Promise<any> => {
+                    return ({
+                        ...initState,
+                        initInstance: async (InstanceState: InstanceViewModel) => {
+                            set(prevState => {
+                                const newState = _.cloneDeep(prevState);
+                                newState.InstanceState = InstanceState;
+                                return newState;
+                            });
+                        },
+                        setInstance: async (user, newInstanceState: InstanceViewModel) => {
+                            _switchIsUpdatingInstanceState(true);
+                            // Try to load from sessionStorage first
                             try {
-                                // Generate a cache key based on the query and instance details
-                                const cacheKey = `query_cache_${instanceView.server}_${instanceView.database}_${instanceView.table}_${query.replace(/\s+/g, '')}`;
+                                const stateKey = `instance_state_${newInstanceState.server}_${newInstanceState.database}_${newInstanceState.table}`;
+                                const savedState = sessionStorage.getItem(stateKey);
 
-                                // Check if we have this data in sessionStorage
-                                try {
-                                    const cachedData = sessionStorage.getItem(cacheKey);
-                                    if (cachedData) {
-                                        console.log('Using cached data for query');
-                                        return JSON.parse(cachedData);
-                                    }
-                                } catch (cacheErr) {
-                                    console.error('Error accessing cache:', cacheErr);
-                                    // Continue with API call if cache access fails
+                                if (savedState) {
+                                    const parsedState = JSON.parse(savedState);
+                                    console.log('Loaded state from sessionStorage:', parsedState);
+
+                                    set(prevState => {
+                                        const newState = _.cloneDeep(prevState);
+                                        newState.InstanceState = parsedState;
+                                        newState.IsUpdatingInstanceState = false;
+                                        return newState;
+                                    });
+
+                                    // Return early if we have saved state
+                                    return;
                                 }
-
-                                // If not in cache, make the API call
-                                const authConfig = await getAuthHeaders(user);
-                                const response = await apiClient.post('mssql/query', {
-                                    config: {
-                                        server: instanceView.server,
-                                        database: instanceView.database,
-                                        table: instanceView.table,
-                                        user: instanceView.sqlConfig.user,
-                                        password: instanceView.sqlConfig.password,
-                                    },
-                                    query
-                                }, authConfig);
-                                console.log('response:', response);
-
-                                // Cache the response for future use
-                                try {
-                                    const cacheKey = `query_cache_${instanceView.server}_${instanceView.database}_${instanceView.table}_${query.replace(/\s+/g, '')}`;
-                                    sessionStorage.setItem(cacheKey, JSON.stringify(response));
-                                } catch (cacheErr) {
-                                    console.error('Error caching response:', cacheErr);
-                                    // Continue even if caching fails
-                                }
-
-                                return response;
                             } catch (err) {
-                                console.error(`${errorMessage}:`, err);
-                                return null;
+                                console.error('Error loading state from sessionStorage:', err);
+                            } finally {
+                                _switchIsUpdatingInstanceState(false);
                             }
-                        };
+                            // Utility function to execute SQL queries and handle errors consistently
+                            const executeQuery = async (user, instanceView: InstanceViewModel, query: string, errorMessage: string): Promise<any> => {
+                                try {
+                                    // Generate a cache key based on the query and instance details
+                                    const cacheKey = `query_cache_${instanceView.server}_${instanceView.database}_${instanceView.table}_${query.replace(/\s+/g, '')}`;
 
-                        // Get count of groups for a specific keyword
-                        const getMappingDataCount = async (user, instanceView: InstanceViewModel, keyword: string): Promise<any> => {
-                            const mappingsStore = createMappingsStore();
-                            // const mappingsState = mappingsStore.getState();
+                                    // Check if we have this data in sessionStorage
+                                    try {
+                                        const cachedData = sessionStorage.getItem(cacheKey);
+                                        if (cachedData) {
+                                            console.log('Using cached data for query');
+                                            return JSON.parse(cachedData);
+                                        }
+                                    } catch (cacheErr) {
+                                        console.error('Error accessing cache:', cacheErr);
+                                        // Continue with API call if cache access fails
+                                    }
 
-                            const query = `
+                                    // If not in cache, make the API call
+                                    const authConfig = await getAuthHeaders(user);
+                                    const response = await apiClient.post('mssql/query', {
+                                        config: {
+                                            server: instanceView.server,
+                                            database: instanceView.database,
+                                            table: instanceView.table,
+                                            user: instanceView.sqlConfig.user,
+                                            password: instanceView.sqlConfig.password,
+                                        },
+                                        query
+                                    }, authConfig);
+                                    console.log('response:', response);
+
+                                    // Cache the response for future use
+                                    try {
+                                        const cacheKey = `query_cache_${instanceView.server}_${instanceView.database}_${instanceView.table}_${query.replace(/\s+/g, '')}`;
+                                        sessionStorage.setItem(cacheKey, JSON.stringify(response));
+                                    } catch (cacheErr) {
+                                        console.error('Error caching response:', cacheErr);
+                                        // Continue even if caching fails
+                                    }
+
+                                    return response;
+                                } catch (err) {
+                                    console.error(`${errorMessage}:`, err);
+                                    return null;
+                                }
+                            };
+
+                            // Get count of groups for a specific keyword
+                            const getMappingDataCount = async (user, instanceView: InstanceViewModel, keyword: string): Promise<any> => {
+                                const mappingsStore = createMappingsStore();
+                                // const mappingsState = mappingsStore.getState();
+
+                                const query = `
                             DECLARE @sql NVARCHAR(MAX);
                             DECLARE @groupFinalColumn NVARCHAR(128);
                             DECLARE @groupColumn NVARCHAR(128);
@@ -143,119 +158,120 @@ export const createInstanceStore = (
                             EXEC sp_executesql @sql;
                         `;
 
-                            return executeQuery(user, instanceView, query, `Getting ${keyword} count failed`);
-                        };
+                                return executeQuery(user, instanceView, query, `Getting ${keyword} count failed`);
+                            };
 
-                        // Get all available mapping names from columns
-                        const queryMappingNames = async (user, instanceView: InstanceViewModel): Promise<string[]> => {
-                            const keywords = ['Procedure', 'Provider', 'Insurance', 'Location'];
-                            const query = `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+                            // Get all available mapping names from columns
+                            const queryMappingNames = async (user, instanceView: InstanceViewModel): Promise<string[]> => {
+                                const keywords = ['Procedure', 'Provider', 'Insurance', 'Location'];
+                                const query = `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
                                        WHERE TABLE_NAME = '${instanceView.table}' 
                                        AND (${keywords.map(keyword => `COLUMN_NAME LIKE '%${keyword}%'`).join(' OR ')})`;
 
-                            const mappingNames = await executeQuery(user, instanceView, query, 'Error getting mapping names');
+                                const mappingNames = await executeQuery(user, instanceView, query, 'Error getting mapping names');
 
-                            if (!mappingNames) return [];
+                                if (!mappingNames) return [];
 
-                            return keywords.filter(keyword =>
-                                mappingNames.some(row => row.COLUMN_NAME.includes(keyword))
-                            );
-                        };
+                                return keywords.filter(keyword =>
+                                    mappingNames.some(row => row.COLUMN_NAME.includes(keyword))
+                                );
+                            };
 
-                        // Get numeric table data for statistics
-                        const fetchNumericTableData = async (user, instanceView: InstanceViewModel): Promise<any> => {
-                            const query = `
-                            SELECT
-                                SUM(Charge_Amount) AS Total_Charge_Amount,
-                                SUM(Payment_Amount) AS Total_Payment_Amount,
-                                SUM(Unit) AS Total_Unit,
-                                COUNT(Final_Charge_Count) AS Final_Charge_Count,
-                                COUNT(Final_Charge_Count_w_Payment) AS Final_Charge_w_Payment,
-                                COUNT(Final_Visit_Count) AS Final_Visit_Count,
-                                COUNT(Final_Visit_Count_w_Payment) AS Final_Visit_w_Payment
-                            FROM ${instanceView.table};
-                        `;
+                            // Get numeric table data for statistics
+                            const fetchNumericTableData = async (user, instanceView: InstanceViewModel): Promise<any> => {
+                                const query = `
+                                SELECT
+                                    SUM(Charge_Amount) AS Total_Charge_Amount,
+                                    SUM(Payment_Amount) AS Total_Payment_Amount,
+                                    SUM(Unit) AS Total_Unit,
+                                    COUNT(Final_Charge_Count) AS Final_Charge_Count,
+                                    COUNT(Final_Charge_Count_w_Payment) AS Final_Charge_w_Payment,
+                                    COUNT(Final_Visit_Count) AS Final_Visit_Count,
+                                    COUNT(Final_Visit_Count_w_Payment) AS Final_Visit_w_Payment
+                                FROM ${instanceView.table};
+                            `;
 
-                            const result = await executeQuery(user, instanceView, query, 'Error getting numeric table data');
-                            if (!result || !result[0]) return [];
+                                const result = await executeQuery(user, instanceView, query, 'Error getting numeric table data');
+                                if (!result || !result[0]) return [];
 
-                            const data = result[0];
+                                const data = result[0];
 
-                            // Map the database fields to our UI fields
-                            const fieldDefinitions = [
-                                { fieldName: 'Charge Amount', type: 'Amount', dbField: 'Total_Charge_Amount' },
-                                { fieldName: 'Payment Amount', type: 'Amount', dbField: 'Total_Payment_Amount' },
-                                { fieldName: 'Unit', type: 'Amount', dbField: 'Total_Unit' },
-                                { fieldName: 'Final Charge Count', type: 'Count', dbField: 'Final_Charge_Count' },
-                                { fieldName: 'Final Charge Count w Payment', type: 'Count', dbField: 'Final_Charge_w_Payment' },
-                                { fieldName: 'Final Visit Count', type: 'Count', dbField: 'Final_Visit_Count' },
-                                { fieldName: 'Final Visit Count w Payment', type: 'Count', dbField: 'Final_Visit_w_Payment' },
-                            ];
+                                // Map the database fields to our UI fields
+                                const fieldDefinitions = [
+                                    { fieldName: 'Charge Amount', type: 'Amount', dbField: 'Total_Charge_Amount' },
+                                    { fieldName: 'Payment Amount', type: 'Amount', dbField: 'Total_Payment_Amount' },
+                                    { fieldName: 'Unit', type: 'Amount', dbField: 'Total_Unit' },
+                                    { fieldName: 'Final Charge Count', type: 'Count', dbField: 'Final_Charge_Count' },
+                                    { fieldName: 'Final Charge Count w Payment', type: 'Count', dbField: 'Final_Charge_w_Payment' },
+                                    { fieldName: 'Final Visit Count', type: 'Count', dbField: 'Final_Visit_Count' },
+                                    { fieldName: 'Final Visit Count w Payment', type: 'Count', dbField: 'Final_Visit_w_Payment' },
+                                ];
 
-                            // Convert to the format expected by the UI
-                            return fieldDefinitions.map(field => ({
-                                fieldName: field.fieldName,
-                                type: field.type,
-                                include: 'Y',
-                                divideBy: 'Y',
-                                schedule: 'Y',
-                                total: data[field.dbField]
-                            }));
-                        };
+                                // Convert to the format expected by the UI
+                                return fieldDefinitions.map(field => ({
+                                    fieldName: field.fieldName,
+                                    type: field.type,
+                                    include: 'Y',
+                                    divideBy: 'Y',
+                                    schedule: 'Y',
+                                    total: data[field.dbField]
+                                }));
+                            };
 
-                        try {
-                            // Fetch all necessary data in parallel
-                            const [mappingNames, numericTableData] = await Promise.all([
-                                queryMappingNames(user, newInstanceState),
-                                fetchNumericTableData(user, newInstanceState)
-                            ]);
+                            try {
+                                // Fetch all necessary data in parallel
+                                const [mappingNames, numericTableData] = await Promise.all([
+                                    queryMappingNames(user, newInstanceState),
+                                    fetchNumericTableData(user, newInstanceState)
+                                ]);
 
-                            // For each mapping name, get the count data
-                            const waterfallCohortsTableData = await Promise.all(
-                                (mappingNames || []).map(async (keyword) => ({
-                                    waterfallCohortName: keyword,
-                                    run: true,
-                                    aggregate: true,
-                                    count: (await getMappingDataCount(user, newInstanceState, keyword))?.[0]?.ROW_COUNT || 0
-                                }))
-                            );
+                                // For each mapping name, get the count data
+                                const waterfallCohortsTableData = await Promise.all(
+                                    (mappingNames || []).map(async (keyword) => ({
+                                        waterfallCohortName: keyword,
+                                        run: true,
+                                        aggregate: true,
+                                        count: (await getMappingDataCount(user, newInstanceState, keyword))?.[0]?.ROW_COUNT || 0
+                                    }))
+                                );
 
-                            // Update state with all the collected data
-                            set(prevState => {
-                                const newState = _.cloneDeep(prevState);
-                                newState.InstanceState = {
-                                    ...newInstanceState,
-                                    waterfallCohortsTableData,
-                                    numericTableData
-                                };
-                                
-                                // Save to sessionStorage
-                                try {
-                                    const stateKey = `instance_state_${newInstanceState.server}_${newInstanceState.database}_${newInstanceState.table}`;
-                                    sessionStorage.setItem(stateKey, JSON.stringify(newState.InstanceState));
-                                } catch (err) {
-                                    console.error('Error saving state to sessionStorage:', err);
-                                }
-                                
-                                return newState;
-                            });
+                                // Update state with all the collected data
+                                set(prevState => {
+                                    const newState = _.cloneDeep(prevState);
+                                    newState.InstanceState = {
+                                        ...newInstanceState,
+                                        waterfallCohortsTableData,
+                                        numericTableData
+                                    };
 
+                                    // Save to sessionStorage
+                                    try {
+                                        const stateKey = `instance_state_${newInstanceState.server}_${newInstanceState.database}_${newInstanceState.table}`;
+                                        sessionStorage.setItem(stateKey, JSON.stringify(newState.InstanceState));
+                                    } catch (err) {
+                                        console.error('Error saving state to sessionStorage:', err);
+                                    }
 
-                        } catch (err) {
-                            console.error('Error setting instance view state:', err);
-                            // Still update with the new instance state even if data fetching fails
-                            set(prevState => {
-                                const newState = _.cloneDeep(prevState);
-                                newState.InstanceState = newInstanceState;
-                                return newState;
-                            });
+                                    return newState;
+                                });
 
 
-                        }
-                    },
+                            } catch (err) {
+                                console.error('Error setting instance view state:', err);
+                                // Still update with the new instance state even if data fetching fails
+                                set(prevState => {
+                                    const newState = _.cloneDeep(prevState);
+                                    newState.InstanceState = newInstanceState;
+                                    return newState;
+                                });
 
 
-                }),
+                            }
+                        },
+
+
+                    });
+                },
                 {
                     name: 'instance-storage',
                     getStorage: () => ({

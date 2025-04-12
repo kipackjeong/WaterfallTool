@@ -81,7 +81,7 @@ const selectionStyles = {
 };
 
 const InstanceView = () => {
-  const { InstanceState } = useInstanceStore((state) => state);
+  const { InstanceState, IsUpdatingInstanceState } = useInstanceStore((state) => state);
   // Using the waterfallCohortsTableData from InstanceState directly
   const [loading, setLoading] = useState(true);
   const [isDrawerOpen, setIsDrawerOpen] = useState(true); // State for horizontal drawer control
@@ -188,8 +188,8 @@ const InstanceView = () => {
       }
     },
   };
+
   useEffect(() => {
-    console.log('InstanceState:', InstanceState)
     const fetchData = async () => {
       setLoading(true);
       try {
@@ -252,6 +252,11 @@ const InstanceView = () => {
       </Table>
     );
   };
+
+  if (IsUpdatingInstanceState || loading) {
+    return <LoadingSpinner />;
+  }
+
   return (
     <Flex width="100%" direction="column" position="relative">
       <motion.div
