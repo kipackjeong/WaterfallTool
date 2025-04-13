@@ -173,6 +173,56 @@ export const createMappingsStore = (
   )
 }
 
+export type MappingsStoreApi = ReturnType<typeof createMappingsStore>
+
+export const MappingsStoreContext = createContext<MappingsStoreApi | undefined>(
+  undefined,
+)
+
+export interface MappingsStoreProviderProps {
+  children: ReactNode
+}
+
+export const MappingsStoreProvider = ({ children }: MappingsStoreProviderProps) => {
+  const storeRef = useRef<MappingsStoreApi>(null)
+  if (!storeRef.current) {
+    storeRef.current = createMappingsStore()
+  }
+
+  // We'll load from localStorage when the instance is set, not on component mount
+  // The loadFromLocalStorage function will be called from initMappingsArrState
+  useEffect(() => {
+    try {
+      const store = storeRef.current;
+      if (store) {
+        // We'll wait for the instance view state to be set before loading
+        console.log('MappingsStoreProvider mounted, waiting for instance state');
+      }
+    } catch (err) {
+      console.error('Error initializing storage:', err);
+    }
+  }, []);
+
+  return (
+    <MappingsStoreContext.Provider value={storeRef.current}>
+      {children}
+    </MappingsStoreContext.Provider>
+  )
+}
+
+export const useMappingsStore = <T,>(
+  selector: (store: MappingsStore) => T,
+): T => {
+  const mappingsStoreContext = useContext(MappingsStoreContext)
+
+  if (!mappingsStoreContext) {
+    throw new Error(`useMappingsStore must be used within MappingsStoreProvider`)
+  }
+
+  return useStore(mappingsStoreContext, selector)
+}
+
+// Helper functions
 async function _getMappingData(user, InstanceState: InstanceViewModel, keyword: string): Promise<MappingsViewModel[]> {
   const query =
     `
@@ -259,6 +309,7 @@ async function _getMappingData(user, InstanceState: InstanceViewModel, keyword: 
     console.error('Error running SQL query:', error);
   }
 }
+
 async function _queryMappingsArr(user, InstanceState: InstanceViewModel): Promise<MappingsViewModel[]> {
   let mappingsArrState: MappingsViewModel[] = [];
   _.forEach(InstanceState.waterfallCohortsTableData, async cohort => {
@@ -283,7 +334,7 @@ async function _queryMappingsArr(user, InstanceState: InstanceViewModel): Promis
   return mappingsArrState.sort((a, b) => a.tabName.localeCompare(b.tabName));
 }
 
-function syncWaterfallGroupWithFinalGroup(mappingsArr: MappingsViewModel[]): MappingsViewModel[] {
+async function _syncWaterfallGroupWithFinalGroup(mappingsArr: MappingsViewModel[]): Promise<MappingsViewModel[]> {
   console.log('mappingsArr:', mappingsArr)
   const waterfallGroupSyncedMappingsArr = _.cloneDeep(mappingsArr)
   console.log('waterfallGroupSyncedMappingsArr:', waterfallGroupSyncedMappingsArr)
@@ -296,53 +347,4 @@ function syncWaterfallGroupWithFinalGroup(mappingsArr: MappingsViewModel[]): Map
     });
     return mapping;
   });
-}
-
-export type MappingsStoreApi = ReturnType<typeof createMappingsStore>
-
-export const MappingsStoreContext = createContext<MappingsStoreApi | undefined>(
-  undefined,
-)
-
-export interface MappingsStoreProviderProps {
-  children: ReactNode
-}
-
-export const MappingsStoreProvider = ({ children }: MappingsStoreProviderProps) => {
-  const storeRef = useRef<MappingsStoreApi>(null)
-  if (!storeRef.current) {
-    storeRef.current = createMappingsStore()
-  }
-
-  // We'll load from localStorage when the instance is set, not on component mount
-  // The loadFromLocalStorage function will be called from initMappingsArrState
-  useEffect(() => {
-    try {
-      const store = storeRef.current;
-      if (store) {
-        // We'll wait for the instance view state to be set before loading
-        console.log('MappingsStoreProvider mounted, waiting for instance state');
-      }
-    } catch (err) {
-      console.error('Error initializing storage:', err);
-    }
-  }, []);
-
-  return (
-    <MappingsStoreContext.Provider value={storeRef.current}>
-      {children}
-    </MappingsStoreContext.Provider>
-  )
-}
-
-export const useMappingsStore = <T,>(
-  selector: (store: MappingsStore) => T,
-): T => {
-  const mappingsStoreContext = useContext(MappingsStoreContext)
-
-  if (!mappingsStoreContext) {
-    throw new Error(`useMappingsStore must be used within MappingsStoreProvider`)
-  }
-
-  return useStore(mappingsStoreContext, selector)
 }

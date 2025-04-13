@@ -44,6 +44,14 @@ export type InstanceViewModel = {
         count: number
     }[]
     numericTableData?: any[]
+    waterfallCohortListData?: {
+        DOS: string[]
+        Posting: string[]
+        Location: string[]
+        Payor: string[]
+        Procedure: string[]
+        LocationPayorProcedure: string[]
+    }
 }
 
 export type MappingsViewModel = {

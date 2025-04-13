@@ -81,7 +81,7 @@ const MappingsView: React.FC = () => {
             await upsyncMappings(InstanceState);
             toast({
                 title: 'Success',
-                description: 'Mappings saved to database successfully.',
+                description: 'Waterfall mappings saved successfully.',
                 status: 'success',
                 duration: 3000,
                 isClosable: true,
@@ -89,7 +89,7 @@ const MappingsView: React.FC = () => {
         } catch (err) {
             toast({
                 title: 'Error',
-                description: 'Failed to save mappings to database.',
+                description: 'Failed to save waterfall mappings.',
                 status: 'error',
                 duration: 3000,
                 isClosable: true,
@@ -204,9 +204,9 @@ interface MappingTableProps {
 const MappingTable: React.FC<MappingTableProps> = ({ mapping, mappingIndex, modifyWaterfallGroup }) => {
     const waterfallColor = useColorModeValue('blue.200', 'blue.600')
     const { colorMode } = useColorMode();
-    const tableBorderColor = getTableBorderColor(colorMode, 0.6);
+    const tableBorderColor = getTableBorderColor(colorMode);
     const headerTextColor = getHeadTextColor(colorMode);
-    
+
     // State for sorting
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: '', direction: null });
 
@@ -214,11 +214,11 @@ const MappingTable: React.FC<MappingTableProps> = ({ mapping, mappingIndex, modi
         maxWidth: "300px",
         padding: "8px",
         textAlign: "center",
+        borderColor: tableBorderColor
     };
     const headerCellStyle = {
         ...cellStyle,
         color: headerTextColor,
-        borderColor: tableBorderColor,
         cursor: 'pointer',
         userSelect: 'none'
     };
@@ -233,11 +233,11 @@ const MappingTable: React.FC<MappingTableProps> = ({ mapping, mappingIndex, modi
         borderColor: waterfallColor,
         borderRadius: 'none'
     };
-    
+
     // Handle column sorting
     const handleSort = (key: string) => {
         let direction: SortDirection = 'asc';
-        
+
         if (sortConfig.key === key) {
             if (sortConfig.direction === 'asc') {
                 direction = 'desc';
@@ -245,22 +245,22 @@ const MappingTable: React.FC<MappingTableProps> = ({ mapping, mappingIndex, modi
                 direction = null;
             }
         }
-        
+
         setSortConfig({ key, direction });
     };
-    
+
     // Get sorted data based on current sort configuration
     const sortedData = useMemo(() => {
         if (!sortConfig.direction || !sortConfig.key) {
             return mapping.data;
         }
-        
+
         return [...mapping.data].sort((a, b) => {
             // Special handling for Waterfall_Group column
             if (sortConfig.key === 'Waterfall_Group') {
                 const aValue = String(a.Waterfall_Group || '').toLowerCase();
                 const bValue = String(b.Waterfall_Group || '').toLowerCase();
-                
+
                 if (aValue < bValue) {
                     return sortConfig.direction === 'asc' ? -1 : 1;
                 }
@@ -269,17 +269,17 @@ const MappingTable: React.FC<MappingTableProps> = ({ mapping, mappingIndex, modi
                 }
                 return 0;
             }
-            
+
             const aValue = a[sortConfig.key];
             const bValue = b[sortConfig.key];
-            
+
             // Handle numeric values (like amounts)
             if (!isNaN(Number(aValue)) && !isNaN(Number(bValue))) {
-                return sortConfig.direction === 'asc' 
+                return sortConfig.direction === 'asc'
                     ? Number(aValue) - Number(bValue)
                     : Number(bValue) - Number(aValue);
             }
-            
+
             // Handle string values
             if (aValue < bValue) {
                 return sortConfig.direction === 'asc' ? -1 : 1;
@@ -290,20 +290,20 @@ const MappingTable: React.FC<MappingTableProps> = ({ mapping, mappingIndex, modi
             return 0;
         });
     }, [mapping.data, sortConfig]);
-    
+
     // Render sort indicator
     const renderSortIcon = (columnName: string) => {
         if (sortConfig.key !== columnName) {
             return null;
         }
-        
+
         return sortConfig.direction === 'asc' ? (
             <TriangleUpIcon ml={1} w={3} h={3} />
         ) : sortConfig.direction === 'desc' ? (
             <TriangleDownIcon ml={1} w={3} h={3} />
         ) : null;
     };
-    
+
     return (
         <Flex sx={{ maxHeight: "1100px", overflow: "scroll" }}>
             <Table colorScheme={'blue'} size="sm" >
