@@ -23,9 +23,78 @@ in server root run `node generate-token.js`
 - ERROR : POST /auth/register - 500: "There is no configuration corresponding to the provided identifier."
   - Check requested Authentication is enabled in firebase console.
 
-## Daily Tasks/Logs
+### mappingsStateArr
+``` ts
+[
+    {
+        "tabName": "Procedure",
+        "keyword": "Procedure",
+        "data": [
+            {
+                "Procedure_Group_Final": "Proc C",
+                "Procedure_Group": "Proc Cx",
+                "Total_Charge_Amount": 2183088.59,
+                "Total_Payment_Amount": 738826.55,
+                "Earliest_Min_DOS": "2023-01",
+                "Latest_Max_DOS": "2023-01",
+                "Waterfall_Group": "Proc C"
+            },
+            {
+                "Procedure_Group_Final": "Proc A",
+                "Procedure_Group": "Proc Ax",
+                "Total_Charge_Amount": 2194933.39,
+                "Total_Payment_Amount": 756651.69,
+                "Earliest_Min_DOS": "2023-01",
+                "Latest_Max_DOS": "2023-01",
+                "Waterfall_Group": "Proc A"
+            },
+            {
+                "Procedure_Group_Final": "Proc C",
+                "Procedure_Group": "Proc C",
+                "Total_Charge_Amount": 59500,
+                "Total_Payment_Amount": 500,
+                "Earliest_Min_DOS": "2020-02",
+                "Latest_Max_DOS": "2020-11",
+                "Waterfall_Group": "Proc C"
+            },
+            {
+                "Procedure_Group_Final": "Proc A",
+                "Procedure_Group": "Proc A",
+                "Total_Charge_Amount": 59500,
+                "Total_Payment_Amount": 500,
+                "Earliest_Min_DOS": "2020-03",
+                "Latest_Max_DOS": "2021-12",
+                "Waterfall_Group": "Proc A"
+            },
+            {
+                "Procedure_Group_Final": "Proc B",
+                "Procedure_Group": "Proc B",
+                "Total_Charge_Amount": 59500,
+                "Total_Payment_Amount": 500,
+                "Earliest_Min_DOS": "2020-01",
+                "Latest_Max_DOS": "2020-10",
+                "Waterfall_Group": "Proc B"
+            },
+            {
+                "Procedure_Group_Final": "Proc B",
+                "Procedure_Group": "Proc Bx",
+                "Total_Charge_Amount": 2196622.58,
+                "Total_Payment_Amount": 755794.38,
+                "Earliest_Min_DOS": "2023-01",
+                "Latest_Max_DOS": "2023-01",
+                "Waterfall_Group": "Proc B"
+            }
+        ]
+    },
+    {
+        "tabName": "Insurance",
+        "keyword": "Primary_Insurance",
+        "data": [...]
+    }
+]
+```
 
-### 2025-02-26
+## Daily Tasks/Logs
 
 - [ ] TODO: implement populate menu button
 - [ ] TODO: implement list waterfall cohorts button
@@ -42,32 +111,7 @@ in server root run `node generate-token.js`
 - [x] TODO: create mappingsState store to be per instanceview scoped.
 - [x] TODO: implement populating counts in the Waterfall Cohorts table list in the Main page of InstanceView.
 
-
-``` js
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyDZhx_R7zOJm1g3w7asJUNMppn9h4aZf3U",
-  authDomain: "water-800cd.firebaseapp.com",
-  projectId: "water-800cd",
-  storageBucket: "water-800cd.firebasestorage.app",
-  messagingSenderId: "177602872359",
-  appId: "1:177602872359:web:941a330b5999640eed7a02",
-  measurementId: "G-EMZ3FQNH3W"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-
-```
-
+### 2025-02-26
 ### 2025-02-25
 #### Local Sql Server Connection Failure
   - The local db connection is keep failing. Things I've tried:

@@ -7,12 +7,12 @@ import { MappingsStoreProvider } from '@/lib/states/mappingsState';
 import Dashboard from './components/Dashboard';
 
 export default function Main() {
-    const { InstanceState } = useInstanceStore((state) => state);
+    const { instanceState } = useInstanceStore((state) => state);
 
     return (
         <Flex width="100%" direction="column" position="relative">
             <MappingsStoreProvider>
-                {InstanceState ? <InstanceView /> : <Dashboard />}
+                {instanceState ? <InstanceView /> : <Dashboard />}
             </MappingsStoreProvider>
 
         </Flex>

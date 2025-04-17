@@ -69,16 +69,16 @@ const Dashboard: React.FC = () => {
 
             const recent = instanceKeys.map(key => {
                 const data = JSON.parse(sessionStorage.getItem(key));
-                
+
                 // Correctly parse the storage key to get the actual server, database, and table names
                 // The format is 'instance_state_<server>_<database>_<table>'
                 const keyParts = key.split('_').slice(2);
-                
+
                 // Get the actual values from the stored instance state
                 const actualServer = data.server || keyParts[0];
                 const actualDatabase = data.database || keyParts[1];
                 const actualTable = data.table || keyParts[2];
-                
+
                 return {
                     server: actualServer,
                     database: actualDatabase,

@@ -10,3 +10,4 @@ Always think about the readability, maintainability, performance and security of
 6. The package manage I use is Yarn. So please use `yarn add <package>` instead of `npm install <package>`
 7. When calling Yarn package calls always call `nvm use node` first.
 8. This project is electron + next.js.
+9. When logging code, please use `console.debug('<name of the target object>', <target object>)`

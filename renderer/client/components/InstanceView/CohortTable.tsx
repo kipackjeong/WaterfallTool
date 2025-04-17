@@ -70,11 +70,11 @@ const CohortTable: React.FC = () => {
   const tableBorderColor = getTableBorderColor(colorMode);
 
   // Fetch the data from the instance state
-  const loading = useInstanceStore(state => state.IsUpdatingInstanceState);
-  const { InstanceState, setInstance } = useInstanceStore(state => state);
+  const loading = useInstanceStore(state => state.isUpdatinginstanceState);
+  const { instanceState, setInstance } = useInstanceStore(state => state);
 
   // If there's no data or we're loading, show a spinner
-  if (!InstanceState || loading || _.isEmpty(InstanceState.waterfallCohortsTableData)) {
+  if (!instanceState || loading || _.isEmpty(instanceState.waterfallCohortsTableData)) {
     return <LoadingSpinner />;
   }
 
@@ -89,7 +89,7 @@ const CohortTable: React.FC = () => {
         </Tr>
       </Thead>
       <Tbody>
-        {InstanceState.waterfallCohortsTableData?.map((cohort, index) => (
+        {instanceState.waterfallCohortsTableData?.map((cohort, index) => (
           <CohortRow
             key={index}
             cohort={cohort}

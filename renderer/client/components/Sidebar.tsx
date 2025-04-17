@@ -32,7 +32,7 @@ const DEFAULT_SIDEBAR_WIDTH = 280; // Default width when open
 const Sidebar = () => {
     // State management hooks
     const { projectsArrState, initProjects, deleteTable } = useProjectStore(state => state);
-    const { setInstance, InstanceState } = useInstanceStore(state => state);
+    const { setInstance, instanceState } = useInstanceStore(state => state);
     const { logout, user } = useAuth();
     const { colorMode } = useColorMode();
     const toast = useToast();
@@ -194,9 +194,9 @@ const Sidebar = () => {
     // Event handlers
     const onTableClick = useCallback((sqlServerInfo, databaseInfo, tableInfo) => {
         // Handling idempotency - only update if something changed
-        if (sqlServerInfo.name !== InstanceState?.server ||
-            databaseInfo.name !== InstanceState?.database ||
-            tableInfo.name !== InstanceState?.table) {
+        if (sqlServerInfo.name !== instanceState?.server ||
+            databaseInfo.name !== instanceState?.database ||
+            tableInfo.name !== instanceState?.table) {
             setInstance(user, {
                 isRemote: sqlServerInfo.isRemote,
                 server: sqlServerInfo.name,
@@ -205,7 +205,7 @@ const Sidebar = () => {
                 sqlConfig: sqlServerInfo.sqlConfig
             });
         }
-    }, [user, InstanceState, setInstance]);
+    }, [user, instanceState, setInstance]);
 
     const toggleDatabase = useCallback((databaseName) => {
         setExpandedDatabases((prevState) => ({

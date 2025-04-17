@@ -13,19 +13,18 @@ export type MappingsArrState = {
 }
 
 export type MappingsActions = {
-  initMappingsArrState: (user, InstanceState: InstanceViewModel) => Promise<void>
-  setMappingsArrState: (user, InstanceState: InstanceViewModel) => Promise<void>
+  setMappingsArrState: (user, instanceState: InstanceViewModel) => Promise<void>
   addMapping: (newMapping: MappingsViewModel) => void
   modifyWaterfallGroup: (mappingIndex: number, rowIndex: number, newWaterfallGroup: string) => void
-  upsyncMappings: (InstanceState: InstanceViewModel) => Promise<void>
-  refreshMappingsArrState: (user, InstanceState: InstanceViewModel) => Promise<void>
+  upsyncMappings: (instanceState: InstanceViewModel) => Promise<void>
+  refreshMappingsArrState: (user, instanceState: InstanceViewModel) => Promise<void>
 }
 
 export type MappingsStore = MappingsArrState & MappingsActions & {
   // Storage operations
-  saveToLocalStorage: (InstanceState: InstanceViewModel) => void;
-  loadFromLocalStorage: (InstanceState: InstanceViewModel) => boolean;
-  clearLocalStorage: (InstanceState: InstanceViewModel) => void;
+  saveToLocalStorage: (instanceState: InstanceViewModel) => void;
+  loadFromLocalStorage: (instanceState: InstanceViewModel) => boolean;
+  clearLocalStorage: (instanceState: InstanceViewModel) => void;
 }
 
 export const defaultInitState: MappingsArrState = {
@@ -33,144 +32,135 @@ export const defaultInitState: MappingsArrState = {
 }
 
 export const createMappingsStore = (
-  initState: MappingsArrState = defaultInitState,
+  initState: MappingsArrState = {
+    mappingsArrState: [],
+  }
 ) => {
-
   return createStore<MappingsStore>()(
     devtools(
-      persist(
-        (set, get) => {
-          return {
-            ...initState,
-            initMappingsArrState: async (user, InstanceState: InstanceViewModel) => {
-              // Load mappings from localStorage with the instance view state
-              // get().loadFromLocalStorage(InstanceState);
-            },
+      (set, get) => ({
+        ...initState,
+        setMappingsArrState: async (user, instanceState: InstanceViewModel) => {
+          const mappingsArrState = await _queryMappingsArr(user, instanceState);
 
-            setMappingsArrState: async (user, InstanceState: InstanceViewModel) => {
-              const mappingsArrState = await _queryMappingsArr(user, InstanceState);
-              console.log('mappingsArrState:', mappingsArrState)
+          set((prevState) => {
+            const newState = _.cloneDeep(prevState);
+            newState.mappingsArrState = mappingsArrState;
 
-              set((prevState) => {
-                const newState = _.cloneDeep(prevState);
-                newState.mappingsArrState = mappingsArrState;
-                return newState;
-              })
-            },
+            return newState;
+          });
+        },
 
-            refreshMappingsArrState: async (user, InstanceState: InstanceViewModel) => {
-              const mappingsArrState = await _queryMappingsArr(user, InstanceState);
-              console.log('mappingsArrState:', mappingsArrState)
 
-              set((prevState) => {
-                const newState = _.cloneDeep(prevState);
-                newState.mappingsArrState = mappingsArrState;
-                return newState;
-              })
-            },
+        refreshMappingsArrState: async (user, instanceState: InstanceViewModel) => {
 
-            addMapping: (newMapping: MappingsViewModel) => set((prevState) => {
-              // Clone the state
-              const newState = _.cloneDeep(prevState);
-              // Add the new mapping
-              newState.mappingsArrState = [...newState.mappingsArrState, newMapping];
-              // Return the new state
-              return newState;
-            }),
+          const mappingsArrState = await _queryMappingsArr(user, instanceState);
 
-            modifyWaterfallGroup: (mappingIndex: number, rowIndex: number, newWaterfallGroup: string) => {
-              set((prevState) => {
-                // Clone the state
-                const newState = _.cloneDeep(prevState);
 
-                // Update the specific field
-                newState.mappingsArrState[mappingIndex].data[rowIndex].Waterfall_Group = newWaterfallGroup;
+          set((prevState) => {
+            const newState = _.cloneDeep(prevState);
+            const prevCount = newState.mappingsArrState.length;
+            newState.mappingsArrState = mappingsArrState;
 
-                // Return the modified state
-                return newState;
-              })
-            },
-            upsyncMappings: async (InstanceState: InstanceViewModel) => {
-              const state = get();
-              state.saveToLocalStorage(InstanceState);
-            },
+            return newState;
+          })
+        },
 
-            saveToLocalStorage: (InstanceState: InstanceViewModel) => {
-              try {
-                const state = get();
-                const storageKey = `mappings_${InstanceState.server}_${InstanceState.database}_${InstanceState.table}`;
-                localStorage.setItem(storageKey, JSON.stringify(state.mappingsArrState));
-                console.log(`Saved mappings to localStorage with key: ${storageKey}`);
-              } catch (err) {
-                console.error('Error saving to localStorage:', err);
-              }
-            },
+        addMapping: (newMapping: MappingsViewModel) => {
+          return set((prevState) => {
+            // Clone the state
+            const newState = _.cloneDeep(prevState);
+            // Add the new mapping
+            newState.mappingsArrState = [...newState.mappingsArrState, newMapping];
 
-            loadFromLocalStorage: (InstanceState: InstanceViewModel) => {
-              try {
-                const storageKey = `mappings_${InstanceState.server}_${InstanceState.database}_${InstanceState.table}`;
-                const savedState = localStorage.getItem(storageKey);
-                if (savedState) {
-                  set(state => ({
-                    ...state,
-                    mappingsArrState: JSON.parse(savedState)
-                  }));
-                  console.log(`Loaded mappings from localStorage with key: ${storageKey}`);
-                  return true;
-                }
-                return false;
-              } catch (err) {
-                console.error('Error loading from localStorage:', err);
-                return false;
-              }
-            },
+            // Return the new state
+            return newState;
+          });
+        },
 
-            clearLocalStorage: (InstanceState: InstanceViewModel) => {
-              try {
-                const storageKey = `mappings_${InstanceState.server}_${InstanceState.database}_${InstanceState.table}`;
-                localStorage.removeItem(storageKey);
-                console.log(`Cleared mappings from localStorage with key: ${storageKey}`);
-              } catch (err) {
-                console.error('Error clearing localStorage:', err);
-              }
+        modifyWaterfallGroup: (mappingIndex: number, rowIndex: number, newWaterfallGroup: string) => {
+          set((prevState) => {
+            // Clone the state
+            const newState = _.cloneDeep(prevState);
+
+            try {
+              // Get mapping details for logging
+              const mappingKeyword = newState.mappingsArrState[mappingIndex].keyword;
+              const oldValue = newState.mappingsArrState[mappingIndex].data[rowIndex].Waterfall_Group;
+
+              // Update the specific field
+              newState.mappingsArrState[mappingIndex].data[rowIndex].Waterfall_Group = newWaterfallGroup;
+
+
+            } catch (err) {
+              console.error('Error updating waterfall group:', err);
+
             }
+
+            // Return the modified state
+            return newState;
+          })
+        },
+        upsyncMappings: async (instanceState: InstanceViewModel) => {
+
+          const state = get();
+          const mappingsCount = state.mappingsArrState.length;
+
+          state.saveToLocalStorage(instanceState);
+        },
+
+        saveToLocalStorage: (instanceState: InstanceViewModel) => {
+          try {
+            const state = get();
+            const stateKey = `mappings_${instanceState.server}_${instanceState.database}_${instanceState.table}`;
+            const mappingsData = state.mappingsArrState;
+            const dataSize = JSON.stringify(mappingsData).length;
+
+            localStorage.setItem(stateKey, JSON.stringify(mappingsData));
+
+          } catch (err) {
+            console.error('Error saving to localStorage:', err);
           }
         },
-        {
-          name: 'mappings-storage',
-          storage: {
-            getItem: (name) => {
-              try {
-                const str = localStorage.getItem(name);
-                return str ? Promise.resolve(JSON.parse(str)) : Promise.resolve(null);
-              } catch (err) {
-                console.error('Error getting item from storage:', err);
-                return Promise.resolve(null);
-              }
-            },
-            setItem: (name, value) => {
-              try {
-                localStorage.setItem(name, JSON.stringify(value));
-                return Promise.resolve();
-              } catch (err) {
-                console.error('Error setting item in storage:', err);
-                return Promise.resolve();
-              }
-            },
-            removeItem: (name) => {
-              try {
-                localStorage.removeItem(name);
-                return Promise.resolve();
-              } catch (err) {
-                console.error('Error removing item from storage:', err);
-                return Promise.resolve();
-              }
+
+        loadFromLocalStorage: (instanceState: InstanceViewModel) => {
+          try {
+            const stateKey = `mappings_${instanceState.server}_${instanceState.database}_${instanceState.table}`;
+            const savedState = localStorage.getItem(stateKey);
+
+            if (savedState) {
+              const parsedData = JSON.parse(savedState);
+
+              set(state => ({
+                ...state,
+                mappingsArrState: parsedData
+              }));
+
+              return true;
             }
+
+
+            return false;
+          } catch (err) {
+            console.error('Error loading from localStorage:', err);
+
+            return false;
+          }
+        },
+
+        clearLocalStorage: (instanceState: InstanceViewModel) => {
+          try {
+            const stateKey = `mappings_${instanceState.server}_${instanceState.database}_${instanceState.table}`;
+            localStorage.removeItem(stateKey);
+
+          } catch (err) {
+            console.error('Error clearing localStorage:', err);
+
           }
         }
-      )
+      })
     )
-  )
+  );
 }
 
 export type MappingsStoreApi = ReturnType<typeof createMappingsStore>
@@ -223,7 +213,7 @@ export const useMappingsStore = <T,>(
 }
 
 // Helper functions
-async function _getMappingData(user, InstanceState: InstanceViewModel, keyword: string): Promise<MappingsViewModel[]> {
+async function _getMappingData(user, instanceState: InstanceViewModel, keyword: string): Promise<MappingsViewModel[]> {
   const query =
     `
         DECLARE @sql NVARCHAR(MAX);
@@ -233,12 +223,12 @@ async function _getMappingData(user, InstanceState: InstanceViewModel, keyword: 
         -- Query to select columns based on pattern
         SELECT TOP 1 @groupFinalColumn = COLUMN_NAME
         FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_NAME = '${InstanceState.table}'
+        WHERE TABLE_NAME = '${instanceState.table}'
         AND COLUMN_NAME LIKE '%${keyword}_Group_Final%';
 
         SELECT TOP 1 @groupColumn = COLUMN_NAME
         FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_NAME = '${InstanceState.table}'
+        WHERE TABLE_NAME = '${instanceState.table}'
         AND COLUMN_NAME LIKE '%${keyword}_Group%';
 
         -- Build the dynamic SQL query
@@ -247,8 +237,9 @@ async function _getMappingData(user, InstanceState: InstanceViewModel, keyword: 
                 SUM(Charge_Amount) AS Total_Charge_Amount,
                 SUM(Payment_Amount) AS Total_Payment_Amount,
                 MIN(DOS_Period) AS Earliest_Min_DOS,
-                MAX(DOS_Period) AS Latest_Max_DOS
-            FROM ${InstanceState.table}
+                MAX(DOS_Period) AS Latest_Max_DOS,
+                MIN(Final_Charge_ID) AS Final_Charge_ID
+            FROM ${instanceState.table}
             GROUP BY ' + QUOTENAME(@groupFinalColumn) + ', ' + QUOTENAME(@groupColumn);
 
         -- Execute the dynamic SQL
@@ -256,7 +247,7 @@ async function _getMappingData(user, InstanceState: InstanceViewModel, keyword: 
       `
   try {
     // Generate a cache key based on the query and instance details
-    const cacheKey = `mapping_cache_${InstanceState.server}_${InstanceState.database}_${InstanceState.table}_${keyword}_${query.replace(/\s+/g, '')}`;
+    const cacheKey = `mapping_cache_${instanceState.server}_${instanceState.database}_${instanceState.table}_${keyword}_${query.replace(/\s+/g, '')}`;
 
     // Check if we have this data in sessionStorage
     try {
@@ -284,18 +275,20 @@ async function _getMappingData(user, InstanceState: InstanceViewModel, keyword: 
     const authConfig = await getAuthHeaders(user);
     const data = (await apiClient.post('mssql/query', {
       config: {
-        server: InstanceState.server,
-        database: InstanceState.database,
-        table: InstanceState.table,
-        user: InstanceState.sqlConfig.user,
-        password: InstanceState.sqlConfig.password
+        server: instanceState.server,
+        database: instanceState.database,
+        table: instanceState.table,
+        user: instanceState.sqlConfig.user,
+        password: instanceState.sqlConfig.password
       },
       query
     }, authConfig));
 
+    console.debug('data:', data)
+
     // Cache the response for future use
     try {
-      const cacheKey = `mapping_cache_${InstanceState.server}_${InstanceState.database}_${InstanceState.table}_${keyword}_${query.replace(/\s+/g, '')}`;
+      const cacheKey = `mapping_cache_${instanceState.server}_${instanceState.database}_${instanceState.table}_${keyword}_${query.replace(/\s+/g, '')}`;
       // Save to both storage types
       localStorage.setItem(cacheKey, JSON.stringify(data));
       sessionStorage.setItem(cacheKey, JSON.stringify(data));
@@ -310,10 +303,10 @@ async function _getMappingData(user, InstanceState: InstanceViewModel, keyword: 
   }
 }
 
-async function _queryMappingsArr(user, InstanceState: InstanceViewModel): Promise<MappingsViewModel[]> {
+async function _queryMappingsArr(user, instanceState: InstanceViewModel): Promise<MappingsViewModel[]> {
   let mappingsArrState: MappingsViewModel[] = [];
-  _.forEach(InstanceState.waterfallCohortsTableData, async cohort => {
-    const mappingData = await _getMappingData(user, InstanceState, cohort.waterfallCohortName);
+  _.forEach(instanceState.waterfallCohortsTableData, async cohort => {
+    const mappingData = await _getMappingData(user, instanceState, cohort.waterfallCohortName);
     if (mappingData && mappingData.length > 0) {
       const columnName = Object.keys(mappingData[0])[0];
       const keyword = columnName.split('_Group')[0];
@@ -326,6 +319,7 @@ async function _queryMappingsArr(user, InstanceState: InstanceViewModel): Promis
       mappingsArrState.push({
         tabName: cohort.waterfallCohortName,
         keyword,
+        finalChargeId: data[0].finalChargeId,
         data
       });
     }

@@ -21,31 +21,27 @@ import {
   getCellStyles,
   getHeaderStyles
 } from '@/lib/styles/tableStyles';
+import { useMappingsStore } from '@/lib/states/mappingsState';
 
 interface ListWaterfallCohortTableProps {
   isVisible: boolean;
 }
 
 const ListWaterfallCohortTable: React.FC<ListWaterfallCohortTableProps> = () => {
+  const { mappingsArrState } = useMappingsStore((state) => state);
+
   const { colorMode } = useColorMode();
   const tableBorderColor = getTableBorderColor(colorMode);
 
   // Fetch the data from the instance state
-  const instanceState = useInstanceStore(state => state.InstanceState);
-  const isLoading = useInstanceStore(state => state.IsUpdatingInstanceState);
+  const instanceState = useInstanceStore(state => state.instanceState);
+  const isLoading = useInstanceStore(state => state.isUpdatinginstanceState);
 
   // Use the real data from the instance state or empty arrays if not available
-  const columns = instanceState?.waterfallCohortListData || {
-    DOS: [],
-    Posting: [],
-    Location: [],
-    Payor: [],
-    Procedure: [],
-    LocationPayorProcedure: []
-  };
+  const columns = instanceState?.waterfallCohortListData
 
   // Find the maximum length of all columns to determine the number of rows
-  const maxRowCount = Object.values(columns).reduce(
+  const maxRowCount = Object.values(columns ?? {}).reduce(
     (max, column) => Math.max(max, column.length), 0
   );
 

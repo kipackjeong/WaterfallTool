@@ -45,8 +45,8 @@ const NumericFieldsTable: React.FC = () => {
   const tableBorderColor = getTableBorderColor(colorMode);
 
   // Fetch the data from the instance state
-  const instanceState = useInstanceStore(state => state.InstanceState);
-  const loading = useInstanceStore(state => state.IsUpdatingInstanceState);
+  const instanceState = useInstanceStore(state => state.instanceState);
+  const loading = useInstanceStore(state => state.isUpdatinginstanceState);
 
   // If there's no data or we're loading, show a spinner
   if (!instanceState || loading || _.isEmpty(instanceState.numericTableData)) {

@@ -50,11 +50,12 @@ export type InstanceViewModel = {
         Location: string[]
         Payor: string[]
         Procedure: string[]
-        LocationPayorProcedure: string[]
+        [keywords: string]: string[]
     }
 }
 
 export type MappingsViewModel = {
+    finalChargeId: string // unique Identifier
     tabName: string
     keyword: string
     data: any[]

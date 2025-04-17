@@ -19,7 +19,7 @@ import { setTimeout } from 'timers';
 // Main MappingsView component
 const MappingsView: React.FC = () => {
     const { user } = useAuth();
-    const { InstanceState } = useInstanceStore(state => state);
+    const { instanceState } = useInstanceStore(state => state);
     const { mappingsArrState, setMappingsArrState, upsyncMappings, modifyWaterfallGroup } = useMappingsStore(state => state);
     const exportTableToExcel = useExportToExcel();
     const toast = useToast();
@@ -32,14 +32,14 @@ const MappingsView: React.FC = () => {
 
     useEffect(() => {
         fetchMappingsViewsState();
-    }, [InstanceState]);
+    }, [instanceState]);
 
     // Data fetching function with error handling
     const fetchMappingsViewsState = async () => {
         setError(null);
         _setLoading(true);
         try {
-            await setMappingsArrState(user, InstanceState);
+            await setMappingsArrState(user, instanceState);
         } catch (error) {
             setError('Failed to fetch mapping views state.');
         }
@@ -78,7 +78,8 @@ const MappingsView: React.FC = () => {
     // Upload mappings to server with feedback
     const handleUpload = async () => {
         try {
-            await upsyncMappings(InstanceState);
+            console.debug('instanceState:', instanceState)
+            await upsyncMappings(instanceState);
             toast({
                 title: 'Success',
                 description: 'Waterfall mappings saved successfully.',
@@ -87,6 +88,7 @@ const MappingsView: React.FC = () => {
                 isClosable: true,
             });
         } catch (err) {
+            console.error('Failed to save waterfall mappings.', err);
             toast({
                 title: 'Error',
                 description: 'Failed to save waterfall mappings.',
