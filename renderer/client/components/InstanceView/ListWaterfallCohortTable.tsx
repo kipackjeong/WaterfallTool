@@ -21,21 +21,18 @@ import {
   getCellStyles,
   getHeaderStyles
 } from '@/lib/styles/tableStyles';
-import { useMappingsStore } from '@/lib/states/mappingsState';
+// Now using combined store
+// import { useMappingsStore } from '@/lib/states/mappingsState';
 
 interface ListWaterfallCohortTableProps {
-  isVisible: boolean;
 }
 
 const ListWaterfallCohortTable: React.FC<ListWaterfallCohortTableProps> = () => {
-  const { mappingsArrState } = useMappingsStore((state) => state);
-
   const { colorMode } = useColorMode();
   const tableBorderColor = getTableBorderColor(colorMode);
 
   // Fetch the data from the instance state
-  const instanceState = useInstanceStore(state => state.instanceState);
-  const isLoading = useInstanceStore(state => state.isUpdatinginstanceState);
+  const { instanceState } = useInstanceStore(state => state);
 
   // Use the real data from the instance state or empty arrays if not available
   const columns = instanceState?.waterfallCohortListData
@@ -46,7 +43,7 @@ const ListWaterfallCohortTable: React.FC<ListWaterfallCohortTableProps> = () => 
   );
 
   // If there's no data and we're not loading, show a message
-  if (maxRowCount === 0 && !isLoading) {
+  if (maxRowCount === 0) {
     return (
       <Box
         maxHeight="400px"
@@ -64,25 +61,6 @@ const ListWaterfallCohortTable: React.FC<ListWaterfallCohortTableProps> = () => 
     );
   }
 
-  // If we're loading, show a spinner
-  if (isLoading) {
-    return (
-      <Box
-        maxHeight="400px"
-        overflowY="auto"
-        backgroundColor={colorMode === 'light' ? 'green.100' : 'green.800'}
-        borderRadius="md"
-        borderWidth="1px"
-        borderColor={tableBorderColor}
-        p={4}
-      >
-        <Center>
-          <Spinner size="xl" />
-        </Center>
-      </Box>
-    );
-  }
-
   return (
     <Box
       maxHeight="400px"
@@ -95,7 +73,7 @@ const ListWaterfallCohortTable: React.FC<ListWaterfallCohortTableProps> = () => 
       <Table sx={{ ...tableStyles }}>
         <Thead position="sticky" top={0} zIndex={1}>
           <Tr>
-            {Object.keys(columns).map((columnName) => (
+            {Object.keys(columns ?? {}).map((columnName) => (
               <Th key={columnName} sx={getHeaderStyles(tableBorderColor)}>
                 {columnName}
               </Th>

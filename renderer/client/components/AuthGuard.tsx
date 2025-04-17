@@ -42,7 +42,7 @@ const AuthGuard = ({ children }: AuthGuardProps) => {
               setLoginError(null);
               return await login(email, password);
             } catch (error) {
-              console.log('error:', error)
+              console.error('error:', error)
               setLoginError(error.message || 'Authentication failed');
             }
           }}

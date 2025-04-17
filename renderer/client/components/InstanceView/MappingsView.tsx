@@ -1,53 +1,63 @@
-import React, { ElementType, useEffect, useState, useMemo } from 'react';
+import React, { ElementType, useEffect, useState, useMemo, useRef } from 'react';
 import {
     Flex, Icon, IconButton, Tab, Table, TabList, TabPanel, TabPanels, Tabs, Tbody, Td, Text, Th, Thead, Tooltip, Tr, useColorMode, useColorModeValue, useToast, Box
 } from '@chakra-ui/react';
 import { TriangleDownIcon, TriangleUpIcon } from '@chakra-ui/icons';
 import { FaDownload, FaSync, FaUpload } from 'react-icons/fa';
-import useExportToExcel from '../../lib/hooks/useExportToExcel';
-import { MappingsViewModel } from '../../lib/models';
-import WaterfallInput from './WaterfallInput';
-import { getHeadTextColor, getTableBorderColor } from '../../lib/themes/theme';
-import { toDollar } from '../../lib/utils/numericHelper';
-import { useInstanceStore } from '../../lib/states/instanceState';
-import { useMappingsStore } from '@/lib/states/mappingsState';
-import _ from 'lodash';
+import useExportToExcel from '../../../lib/hooks/useExportToExcel';
+import { MappingsViewModel } from '../../../lib/models';
+import WaterfallInput from '../WaterfallInput';
+import { getHeadTextColor, getTableBorderColor } from '../../../lib/themes/theme';
+import { toDollar } from '../../../lib/utils/numericHelper';
+import { useInstanceStore } from '../../../lib/states/instanceState';
 import { useAuth } from '@/lib/contexts/authContext';
-import LoadingSpinner from '../common/LoadingSpinner';
-import { setTimeout } from 'timers';
+import LoadingSpinner from '../../common/LoadingSpinner';
+import _ from 'lodash';
 
 // Main MappingsView component
 const MappingsView: React.FC = () => {
     const { user } = useAuth();
-    const { instanceState, updateWaterfallCohortListData } = useInstanceStore(state => state);
-    const { mappingsArrState, setMappingsArrState, upsyncMappings, modifyWaterfallGroup } = useMappingsStore(state => state);
+    // Get all needed state and actions from the combined store
+    const {
+        instanceState,
+        mappingsState,
+        setMappingsState,
+        upsyncCurrentMappings,
+        modifyWaterfallGroup
+    } = useInstanceStore(state => state);
     const exportTableToExcel = useExportToExcel();
     const toast = useToast();
 
     const [_loading, _setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
     const { colorMode } = useColorMode();
     const tabBorderColor = getTableBorderColor(colorMode, 0.5);
 
+    // Instead of auto-loading, we'll load once on initial mount only
     useEffect(() => {
-        fetchMappingsViewsState();
-    }, [instanceState]);
+        // Initial load if we have an instance
+        if (instanceState && !mappingsState) {
+            fetchMappingsViewsState();
+        }
+    }, [instanceState, mappingsState]);
 
-    // Data fetching function with error handling
     const fetchMappingsViewsState = async () => {
-        setError(null);
         _setLoading(true);
         try {
-            await setMappingsArrState(user, instanceState);
+            // Only fetch if we have an instanceState
+            await setMappingsState(user, instanceState);
         } catch (error) {
-            setError('Failed to fetch mapping views state.');
-        }
-
-        setTimeout(() => {
+            console.error('Error loading mappings:', error);
+            toast({
+                title: 'Error',
+                description: 'Failed to fetch mapping views state.',
+                status: 'error',
+                duration: 3000,
+                isClosable: true,
+            });
+        } finally {
             _setLoading(false);
-        }, 2000);
-
+        }
     };
 
     // Export mapping data to Excel
@@ -78,9 +88,7 @@ const MappingsView: React.FC = () => {
     // Upload mappings to server with feedback
     const handleUpload = async () => {
         try {
-            console.debug('instanceState:', instanceState)
-            await upsyncMappings(instanceState);
-            await updateWaterfallCohortListData(user);
+            await upsyncCurrentMappings(user, instanceState);
             toast({
                 title: 'Success',
                 description: 'Waterfall mappings saved successfully.',
@@ -100,14 +108,9 @@ const MappingsView: React.FC = () => {
         }
     };
 
-    // Render error state
-    if (error) {
-        return <Text color="red.500">{error}</Text>;
-    }
-
     // Main render with tabs and table
     return (
-        !mappingsArrState || _loading) ?
+        !mappingsState || _loading) ?
         <div style={{ width: "100%", height: "500px" }}>
             <LoadingSpinner />
         </div>
@@ -121,12 +124,12 @@ const MappingsView: React.FC = () => {
                     width: "100%", height: "100%",
                 }}>
                     <TabList sx={{ position: "relative", borderColor: tabBorderColor }}>
-                        {mappingsArrState.map((mapping, mappingIndex) => (
+                        {mappingsState.map((mapping, mappingIndex) => (
                             <Tab key={mappingIndex}>{mapping.tabName}</Tab>
                         ))}
                     </TabList>
                     <TabPanels flex={1}>
-                        {mappingsArrState.map((mapping, mappingIndex) => (
+                        {mappingsState.map((mapping, mappingIndex) => (
                             <TabPanel key={mappingIndex} sx={{ padding: 0 }}>
                                 <Flex direction="row" sx={{ margin: 0, position: "relative", height: "44px", justifyContent: "center", alignItems: "center" }}>
 

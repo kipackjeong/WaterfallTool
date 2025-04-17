@@ -102,7 +102,6 @@ const LoginModal = ({
 
       // Check if login/register was successful
       if (!result) {
-        console.log('result:', result)
         throw new Error(isRegistering ? 'Registration failed' : 'Authentication failed');
       }
 

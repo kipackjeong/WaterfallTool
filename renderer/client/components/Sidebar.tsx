@@ -193,18 +193,13 @@ const Sidebar = () => {
 
     // Event handlers
     const onTableClick = useCallback((sqlServerInfo, databaseInfo, tableInfo) => {
-        // Handling idempotency - only update if something changed
-        if (sqlServerInfo.name !== instanceState?.server ||
-            databaseInfo.name !== instanceState?.database ||
-            tableInfo.name !== instanceState?.table) {
-            setInstance(user, {
-                isRemote: sqlServerInfo.isRemote,
-                server: sqlServerInfo.name,
-                database: databaseInfo.name,
-                table: tableInfo.name,
-                sqlConfig: sqlServerInfo.sqlConfig
-            });
-        }
+        setInstance(user, {
+            isRemote: sqlServerInfo.isRemote,
+            server: sqlServerInfo.name,
+            database: databaseInfo.name,
+            table: tableInfo.name,
+            sqlConfig: sqlServerInfo.sqlConfig
+        });
     }, [user, instanceState, setInstance]);
 
     const toggleDatabase = useCallback((databaseName) => {

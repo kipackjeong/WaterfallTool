@@ -19,7 +19,6 @@ const setupLogging = () => {
     }
 
     const logFile = path.join(logDir, `app-${new Date().toISOString().replace(/:/g, '-')}.log`);
-    console.log(`Logging to file: ${logFile}`);
 
     // Create a write stream
     const logStream = fs.createWriteStream(logFile, { flags: 'a' });

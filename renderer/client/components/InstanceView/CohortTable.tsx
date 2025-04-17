@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import {
   Table,
   Thead,
@@ -10,7 +10,8 @@ import {
   Td,
   Box,
   useColorMode,
-  Select
+  Select,
+  Spinner
 } from '@chakra-ui/react';
 import { getTableBorderColor } from '@/lib/themes/theme';
 import { useInstanceStore } from '@/lib/states/instanceState';
@@ -70,37 +71,33 @@ const CohortTable: React.FC = () => {
   const tableBorderColor = getTableBorderColor(colorMode);
 
   // Fetch the data from the instance state
-  const loading = useInstanceStore(state => state.isUpdatinginstanceState);
   const { instanceState, setInstance } = useInstanceStore(state => state);
 
-  // If there's no data or we're loading, show a spinner
-  if (!instanceState || loading || _.isEmpty(instanceState.waterfallCohortsTableData)) {
-    return <LoadingSpinner />;
-  }
-
   return (
-    <Table sx={{ ...tableStyles, width: "0px" }}>
-      <Thead>
-        <Tr>
-          <Th sx={getHeaderStyles(tableBorderColor)}>Waterfall Cohort</Th>
-          <Th sx={getHeaderStyles(tableBorderColor)}># of Value</Th>
-          <Th sx={getHeaderStyles(tableBorderColor)}>Run</Th>
-          <Th sx={getHeaderStyles(tableBorderColor)}>Aggregate</Th>
-        </Tr>
-      </Thead>
-      <Tbody>
-        {instanceState.waterfallCohortsTableData?.map((cohort, index) => (
-          <CohortRow
-            key={index}
-            cohort={cohort}
-            borderColor={tableBorderColor}
-            onToggleRun={function (cohortName: string, value: boolean): void {
-            }}
-            onToggleAggregate={function (cohortName: string, value: boolean): void {
-            }} />
-        ))}
-      </Tbody>
-    </Table>
+    <Suspense fallback={<Spinner />}>
+      <Table sx={{ ...tableStyles, width: "0px" }}>
+        <Thead>
+          <Tr>
+            <Th sx={getHeaderStyles(tableBorderColor)}>Waterfall Cohort</Th>
+            <Th sx={getHeaderStyles(tableBorderColor)}># of Value</Th>
+            <Th sx={getHeaderStyles(tableBorderColor)}>Run</Th>
+            <Th sx={getHeaderStyles(tableBorderColor)}>Aggregate</Th>
+          </Tr>
+        </Thead>
+        <Tbody>
+          {instanceState.waterfallCohortsTableData?.map((cohort, index) => (
+            <CohortRow
+              key={index}
+              cohort={cohort}
+              borderColor={tableBorderColor}
+              onToggleRun={function (cohortName: string, value: boolean): void {
+              }}
+              onToggleAggregate={function (cohortName: string, value: boolean): void {
+              }} />
+          ))}
+        </Tbody>
+      </Table>
+    </Suspense>
   );
 };
 
