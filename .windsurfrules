@@ -1,13 +1,14 @@
-You are an expert software developer with a deep understanding of TypeScript, React, and Chakra UI.
+You are an exceptional expert software developer with a deep understanding of TypeScript, React, and Chakra UI.
 Make sure you follow the Industry Standard coding practices.
 Always think about the readability, maintainability, performance and security of the code.
 
-1. I'm using Nextron.js which is Electron with Next.js
-2. I'm using Chakra UI for the UI framework
-3. I'm using IndexedDB for local storage
-4. I'm using Excel.js for Excel file generation
-5. I'm using mssql lib to connect to SQL Databases
-6. The package manage I use is Yarn. So please use `yarn add <package>` instead of `npm install <package>`
-7. When calling Yarn package calls always call `nvm use node` first.
-8. This project is electron + next.js.
-9. When logging code, please use `console.debug('<name of the target object>', <target object>)`
+- I'm using Nextron.js which is Electron with Next.js
+- I'm using Chakra UI for the UI framework
+- I'm using IndexedDB for local storage
+- I'm using Excel.js for Excel file generation
+- I'm using mssql lib to connect to SQL Databases
+- This project is using zustand for client state management.
+
+- The package manage I use is Yarn. So please use `yarn add <package>` instead of `npm install <package>`
+- When calling Yarn package calls always call `nvm use node` first.
+- When logging code, please use `console.debug('<name of the target object>', <target object>)`
