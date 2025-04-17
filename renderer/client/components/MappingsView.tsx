@@ -19,7 +19,7 @@ import { setTimeout } from 'timers';
 // Main MappingsView component
 const MappingsView: React.FC = () => {
     const { user } = useAuth();
-    const { instanceState } = useInstanceStore(state => state);
+    const { instanceState, updateWaterfallCohortListData } = useInstanceStore(state => state);
     const { mappingsArrState, setMappingsArrState, upsyncMappings, modifyWaterfallGroup } = useMappingsStore(state => state);
     const exportTableToExcel = useExportToExcel();
     const toast = useToast();
@@ -80,6 +80,7 @@ const MappingsView: React.FC = () => {
         try {
             console.debug('instanceState:', instanceState)
             await upsyncMappings(instanceState);
+            await updateWaterfallCohortListData(user);
             toast({
                 title: 'Success',
                 description: 'Waterfall mappings saved successfully.',

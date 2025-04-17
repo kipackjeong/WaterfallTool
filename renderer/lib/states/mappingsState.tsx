@@ -6,6 +6,7 @@ import { InstanceViewModel, MappingsViewModel } from '../models';
 import apiClient from '../api/apiClient';
 import * as _ from 'lodash';
 import { getAuthHeaders } from '../utils/authUtils';
+import { get } from 'http';
 
 //Zustand stuff
 export type MappingsArrState = {
@@ -20,12 +21,7 @@ export type MappingsActions = {
   refreshMappingsArrState: (user, instanceState: InstanceViewModel) => Promise<void>
 }
 
-export type MappingsStore = MappingsArrState & MappingsActions & {
-  // Storage operations
-  saveToLocalStorage: (instanceState: InstanceViewModel) => void;
-  loadFromLocalStorage: (instanceState: InstanceViewModel) => boolean;
-  clearLocalStorage: (instanceState: InstanceViewModel) => void;
-}
+export type MappingsStore = MappingsArrState & MappingsActions
 
 export const defaultInitState: MappingsArrState = {
   mappingsArrState: []
@@ -41,12 +37,13 @@ export const createMappingsStore = (
       (set, get) => ({
         ...initState,
         setMappingsArrState: async (user, instanceState: InstanceViewModel) => {
-          const mappingsArrState = await _queryMappingsArr(user, instanceState);
-
+          let mappingsArrState = loadFromLocalStorage(instanceState)
+          if (!mappingsArrState) {
+            mappingsArrState = await _queryMappingsArr(user, instanceState);
+          }
           set((prevState) => {
             const newState = _.cloneDeep(prevState);
             newState.mappingsArrState = mappingsArrState;
-
             return newState;
           });
         },
@@ -102,62 +99,8 @@ export const createMappingsStore = (
           })
         },
         upsyncMappings: async (instanceState: InstanceViewModel) => {
-
-          const state = get();
-          const mappingsCount = state.mappingsArrState.length;
-
-          state.saveToLocalStorage(instanceState);
+          saveToLocalStorage(instanceState, get().mappingsArrState);
         },
-
-        saveToLocalStorage: (instanceState: InstanceViewModel) => {
-          try {
-            const state = get();
-            const stateKey = `mappings_${instanceState.server}_${instanceState.database}_${instanceState.table}`;
-            const mappingsData = state.mappingsArrState;
-            const dataSize = JSON.stringify(mappingsData).length;
-
-            localStorage.setItem(stateKey, JSON.stringify(mappingsData));
-
-          } catch (err) {
-            console.error('Error saving to localStorage:', err);
-          }
-        },
-
-        loadFromLocalStorage: (instanceState: InstanceViewModel) => {
-          try {
-            const stateKey = `mappings_${instanceState.server}_${instanceState.database}_${instanceState.table}`;
-            const savedState = localStorage.getItem(stateKey);
-
-            if (savedState) {
-              const parsedData = JSON.parse(savedState);
-
-              set(state => ({
-                ...state,
-                mappingsArrState: parsedData
-              }));
-
-              return true;
-            }
-
-
-            return false;
-          } catch (err) {
-            console.error('Error loading from localStorage:', err);
-
-            return false;
-          }
-        },
-
-        clearLocalStorage: (instanceState: InstanceViewModel) => {
-          try {
-            const stateKey = `mappings_${instanceState.server}_${instanceState.database}_${instanceState.table}`;
-            localStorage.removeItem(stateKey);
-
-          } catch (err) {
-            console.error('Error clearing localStorage:', err);
-
-          }
-        }
       })
     )
   );
@@ -213,6 +156,44 @@ export const useMappingsStore = <T,>(
 }
 
 // Helper functions
+function saveToLocalStorage(instanceState: InstanceViewModel, mappingsArrState: MappingsViewModel[]) {
+  try {
+    const stateKey = `mappings_${instanceState.server}_${instanceState.database}_${instanceState.table}`;
+
+    localStorage.setItem(stateKey, JSON.stringify(mappingsArrState));
+
+  } catch (err) {
+    console.error('Error saving to localStorage:', err);
+  }
+}
+
+function loadFromLocalStorage(instanceState: InstanceViewModel) {
+  try {
+    const stateKey = `mappings_${instanceState.server}_${instanceState.database}_${instanceState.table}`;
+    const savedState = localStorage.getItem(stateKey);
+
+    if (savedState) {
+      const parsedData = JSON.parse(savedState);
+      return parsedData;
+    }
+    return null;
+  } catch (err) {
+    console.error('Error loading from localStorage:', err);
+
+    return null;
+  }
+}
+
+function clearLocalStorage(instanceState: InstanceViewModel) {
+  try {
+    const stateKey = `mappings_${instanceState.server}_${instanceState.database}_${instanceState.table}`;
+    localStorage.removeItem(stateKey);
+
+  } catch (err) {
+    console.error('Error clearing localStorage:', err);
+
+  }
+}
 async function _getMappingData(user, instanceState: InstanceViewModel, keyword: string): Promise<MappingsViewModel[]> {
   const query =
     `

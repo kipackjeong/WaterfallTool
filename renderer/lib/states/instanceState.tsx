@@ -6,7 +6,6 @@ import { InstanceViewModel, MappingsViewModel, User } from '../models'
 import apiClient from '../api/apiClient'
 import * as _ from 'lodash';
 import { getAuthHeaders } from '../utils/authUtils'
-import { createMappingsStore } from './mappingsState'
 
 export type InstanceState = {
     instanceState: InstanceViewModel
@@ -15,6 +14,7 @@ export type InstanceState = {
 
 export type InstanceActions = {
     setInstance: (user: User, newinstanceState: InstanceViewModel) => void,
+    updateNumericTableData: (user: User) => Promise<any>,
 }
 
 export type InstanceStore = InstanceState & InstanceActions
@@ -42,13 +42,6 @@ export const createInstanceStore = (
 
                     return ({
                         ...initState,
-                        initInstance: async (instanceState: InstanceViewModel) => {
-                            set(prevState => {
-                                const newState = _.cloneDeep(prevState);
-                                newState.instanceState = instanceState;
-                                return newState;
-                            });
-                        },
                         setInstance: async (user, newinstanceState: InstanceViewModel) => {
                             console.log('[setInstance] Starting...')
                             _switchIsUpdatinginstanceState(true);
@@ -73,9 +66,8 @@ export const createInstanceStore = (
                                 // }
                                 const mappingNames: string[] = await queryMappingNames(user, newinstanceState);
                                 // Fetch all necessary data in parallel
-                                const [numericTableData, waterfallCohortListData] = await Promise.all([
-                                    initNumericTableData(user, newinstanceState),
-                                    updateWaterfallCohortListData(user, newinstanceState, mappingNames)
+                                const [numericTableData] = await Promise.all([
+                                    get().updateNumericTableData(user),
                                 ]);
 
                                 // For each mapping name, get the count data
@@ -95,7 +87,6 @@ export const createInstanceStore = (
                                         ...newinstanceState,
                                         waterfallCohortsTableData,
                                         numericTableData,
-                                        waterfallCohortListData
                                     };
 
                                     // Save to sessionStorage
@@ -122,6 +113,129 @@ export const createInstanceStore = (
                                 _switchIsUpdatinginstanceState(false);
                             }
                         },
+                        updateNumericTableData: async (user: User): Promise<any> => {
+                            const instanceState = get().instanceState;
+                            const query = `
+                                SELECT
+                                    SUM(Charge_Amount) AS Total_Charge_Amount,
+                                    SUM(Payment_Amount) AS Total_Payment_Amount,
+                                    SUM(Unit) AS Total_Unit,
+                                    COUNT(Final_Charge_Count) AS Final_Charge_Count,
+                                    COUNT(Final_Charge_Count_w_Payment) AS Final_Charge_w_Payment,
+                                    COUNT(Final_Visit_Count) AS Final_Visit_Count,
+                                    COUNT(Final_Visit_Count_w_Payment) AS Final_Visit_w_Payment
+                                FROM ${instanceState.table};
+                            `;
+                            const result = await executeQuery(user, instanceState, query, 'Error getting numeric table data');
+                            if (!result || !result[0]) return [];
+
+                            const data = result[0];
+
+                            // Map the database fields to our UI fields
+                            const fieldDefinitions = [
+                                { fieldName: 'Charge Amount', type: 'Amount', dbField: 'Total_Charge_Amount' },
+                                { fieldName: 'Payment Amount', type: 'Amount', dbField: 'Total_Payment_Amount' },
+                                { fieldName: 'Unit', type: 'Amount', dbField: 'Total_Unit' },
+                                { fieldName: 'Final Charge Count', type: 'Count', dbField: 'Final_Charge_Count' },
+                                { fieldName: 'Final Charge Count w Payment', type: 'Count', dbField: 'Final_Charge_w_Payment' },
+                                { fieldName: 'Final Visit Count', type: 'Count', dbField: 'Final_Visit_Count' },
+                                { fieldName: 'Final Visit Count w Payment', type: 'Count', dbField: 'Final_Visit_w_Payment' },
+                            ];
+
+                            // Convert to the format expected by the UI
+                            return fieldDefinitions.map(field => ({
+                                fieldName: field.fieldName,
+                                type: field.type,
+                                include: 'Y',
+                                divideBy: 'Y',
+                                schedule: 'Y',
+                                total: data[field.dbField]
+                            }));
+                        },
+                        updateWaterfallCohortListData: async (user: User): Promise<any> => {
+                            const instanceState = get().instanceState;
+                            try {
+                                // Get the static columns first (DOS and Posting)
+                                const dosQuery = `
+                                    SELECT DISTINCT DOS_Period as DOS 
+                                    FROM ${instanceState.table} 
+                                    WHERE DOS_Period IS NOT NULL 
+                                    ORDER BY DOS_Period
+                                `;
+
+                                const postingQuery = `
+                                    SELECT DISTINCT Posting_Period as Posting 
+                                    FROM ${instanceState.table} 
+                                    WHERE Posting_Period IS NOT NULL 
+                                    ORDER BY Posting_Period
+                                `;
+
+                                const [dosResult, postingResult] = await Promise.all([
+                                    executeQuery(user, instanceState, dosQuery, 'Error getting DOS data'),
+                                    executeQuery(user, instanceState, postingQuery, 'Error getting Posting data')
+                                ]);
+
+
+                                // Initialize the result object with the static columns
+                                const result: Record<string, any[]> = {
+                                    DOS: dosResult ? dosResult.map(row => row.DOS) : [],
+                                    Posting: postingResult ? postingResult.map(row => row.Posting) : [],
+                                };
+
+                                const stateKey = `mappings_${instanceState.server}_${instanceState.database}_${instanceState.table}`;
+
+                                const mappingsArrStateFromLocalStorage = localStorage.getItem(stateKey);
+                                if (mappingsArrStateFromLocalStorage) {
+                                    const mappingsArrState: MappingsViewModel[] = JSON.parse(mappingsArrStateFromLocalStorage);
+                                    // Build keywords string and populate results in one pass
+                                    const keywords = _.reduce(mappingsArrState, (acc, mapping) => {
+
+                                        // Extract unique Waterfall_Group values for each tab
+                                        result[mapping.tabName] = _.chain(mapping.data)
+                                            .map('Waterfall_Group')
+                                            .uniq()
+                                            .compact()
+                                            .value();
+
+                                        // Append to keywords string
+                                        return acc + mapping.keyword + '-';
+                                    }, '');
+
+                                    // Initialize empty array for combined keywords
+                                    result[keywords] = [];
+                                }
+                                console.debug('result:', result)
+                                // Update state with all the collected data
+                                set(prevState => {
+                                    const newState = _.cloneDeep(prevState);
+                                    newState.instanceState.waterfallCohortListData = result as any;
+
+                                    // Save to sessionStorage
+                                    try {
+                                        const stateKey = `instance_state_${newState.instanceState.server}_${newState.instanceState.database}_${newState.instanceState.table}`;
+                                        sessionStorage.setItem(stateKey, JSON.stringify(newState.instanceState));
+                                    } catch (err) {
+                                        console.error('Error saving state to sessionStorage:', err);
+                                    }
+
+                                    return newState;
+                                });
+                                return result;
+                            }
+                            catch (error) {
+                                // Return empty arrays for all columns
+                                const defaultResult: Record<string, any[]> = {
+                                    DOS: [],
+                                    Posting: [],
+                                    LocationPayorProcedure: []
+                                };
+
+                                return defaultResult;
+                            }
+                            finally {
+
+                            }
+                        }
                     });
                 },
                 {
@@ -229,10 +343,7 @@ async function executeQuery(user, instanceState: InstanceViewModel, query: strin
  * a query to count the distinct groups. It uses dynamic SQL to handle different
  * table structures with consistent logic.
  */
-async function getMappingDataCount(user, instanceState: InstanceViewModel, keyword: string): Promise<any> {
-    const mappingsStore = createMappingsStore();
-    // const mappingsState = mappingsStore.getState();
-
+async function getMappingDataCount(user: User, instanceState: InstanceViewModel, keyword: string): Promise<any> {
     const query = `
         DECLARE @sql NVARCHAR(MAX);
         DECLARE @groupFinalColumn NVARCHAR(128);
@@ -293,156 +404,6 @@ async function queryMappingNames(user, instanceState: InstanceViewModel): Promis
     );
 };
 
-/**
- * Fetches and formats numeric summary data for dashboard statistics.
- * 
- * @param user - The authenticated user making the request
- * @param instanceState - The view model containing database connection details
- * @returns Promise resolving to an array of formatted field objects for UI display
- * 
- * @remarks
- * This function retrieves aggregate data (sums and counts) from the table and transforms
- * it into a standardized format for display in the UI's numeric table. It includes
- * charge amounts, payment amounts, units, and various count metrics.
- */
-async function initNumericTableData(user, instanceState: InstanceViewModel): Promise<any> {
-    const query = `
-                                SELECT
-                                    SUM(Charge_Amount) AS Total_Charge_Amount,
-                                    SUM(Payment_Amount) AS Total_Payment_Amount,
-                                    SUM(Unit) AS Total_Unit,
-                                    COUNT(Final_Charge_Count) AS Final_Charge_Count,
-                                    COUNT(Final_Charge_Count_w_Payment) AS Final_Charge_w_Payment,
-                                    COUNT(Final_Visit_Count) AS Final_Visit_Count,
-                                    COUNT(Final_Visit_Count_w_Payment) AS Final_Visit_w_Payment
-                                FROM ${instanceState.table};
-                            `;
-    const result = await executeQuery(user, instanceState, query, 'Error getting numeric table data');
-    if (!result || !result[0]) return [];
-
-    const data = result[0];
-
-    // Map the database fields to our UI fields
-    const fieldDefinitions = [
-        { fieldName: 'Charge Amount', type: 'Amount', dbField: 'Total_Charge_Amount' },
-        { fieldName: 'Payment Amount', type: 'Amount', dbField: 'Total_Payment_Amount' },
-        { fieldName: 'Unit', type: 'Amount', dbField: 'Total_Unit' },
-        { fieldName: 'Final Charge Count', type: 'Count', dbField: 'Final_Charge_Count' },
-        { fieldName: 'Final Charge Count w Payment', type: 'Count', dbField: 'Final_Charge_w_Payment' },
-        { fieldName: 'Final Visit Count', type: 'Count', dbField: 'Final_Visit_Count' },
-        { fieldName: 'Final Visit Count w Payment', type: 'Count', dbField: 'Final_Visit_w_Payment' },
-    ];
-
-    // Convert to the format expected by the UI
-    return fieldDefinitions.map(field => ({
-        fieldName: field.fieldName,
-        type: field.type,
-        include: 'Y',
-        divideBy: 'Y',
-        schedule: 'Y',
-        total: data[field.dbField]
-    }));
-};
-
-/**
- * Retrieves the distinct values for each column category needed by the waterfall cohort list table.
- * 
- * @param user - The authenticated user making the request
- * @param instanceState - The view model containing database connection details
- * @param mappingNames - Array of mapping keywords to include as columns
- * @returns Promise resolving to an object containing arrays of distinct values for each category
- * 
- * @remarks
- * This function executes queries to get the distinct values for DOS periods,
- * posting dates, and dynamically generates entries for mapping names.
- * The results are organized into arrays suitable for display in the ListWaterfallCohortTable component.
- */
-async function updateWaterfallCohortListData(user: User, instanceState: InstanceViewModel, mappingNames: string[]): Promise<any> {
-
-    try {
-        // Get the static columns first (DOS and Posting)
-        const dosQuery = `
-            SELECT DISTINCT DOS_Period as DOS 
-            FROM ${instanceState.table} 
-            WHERE DOS_Period IS NOT NULL 
-            ORDER BY DOS_Period
-        `;
-
-        const postingQuery = `
-            SELECT DISTINCT Posting_Period as Posting 
-            FROM ${instanceState.table} 
-            WHERE Posting_Period IS NOT NULL 
-            ORDER BY Posting_Period
-        `;
-
-        const [dosResult, postingResult] = await Promise.all([
-            executeQuery(user, instanceState, dosQuery, 'Error getting DOS data'),
-            executeQuery(user, instanceState, postingQuery, 'Error getting Posting data')
-        ]);
-
-
-        // Initialize the result object with the static columns
-        const result: Record<string, any[]> = {
-            DOS: dosResult ? dosResult.map(row => row.DOS) : [],
-            Posting: postingResult ? postingResult.map(row => row.Posting) : [],
-        };
-
-
-        // Check if there's data in localStorage for this instance
-        try {
-
-            const stateKey = `mappings_${instanceState.server}_${instanceState.database}_${instanceState.table}`;
-
-            const mappingsArrStateFromLocalStorage = localStorage.getItem(stateKey);
-            if (mappingsArrStateFromLocalStorage) {
-                const mappingsArrState: MappingsViewModel[] = JSON.parse(mappingsArrStateFromLocalStorage);
-                // Build keywords string and populate results in one pass
-                const keywords = _.reduce(mappingsArrState, (acc, mapping) => {
-
-                    // Extract unique Waterfall_Group values for each tab
-                    result[mapping.tabName] = _.chain(mapping.data)
-                        .map('Waterfall_Group')
-                        .uniq()
-                        .compact()
-                        .value();
-
-                    // Append to keywords string
-                    return acc + mapping.keyword + '-';
-                }, '');
-
-                // Initialize empty array for combined keywords
-                result[keywords] = [];
-            }
-        }
-        catch (err) {
-            console.error('Error loading mappings data from localStorage:', err);
-        }
-
-
-        return result;
-    }
-    catch (error) {
-        console.error('[updateWaterfallCohortListData] ERROR:', error);
-        console.error('[updateWaterfallCohortListData] Stack trace:', error.stack);
-
-        // Return empty arrays for all columns
-        const defaultResult: Record<string, any[]> = {
-            DOS: [],
-            Posting: [],
-            LocationPayorProcedure: []
-        };
-
-        // Add empty arrays for each mapping name
-        mappingNames.forEach(name => {
-            defaultResult[name] = [];
-        });
-
-        return defaultResult;
-    }
-    finally {
-
-    }
-}
 
 export type InstanceStoreApi = ReturnType<typeof createInstanceStore>;
 
