@@ -36,7 +36,7 @@ import { useInstanceStore } from '../../lib/states/instanceState';
 import { useAuth } from '../../lib/contexts/authContext';
 import { toDollar } from '../../lib/utils/numericHelper';
 import { getTableBorderColor } from '../../lib/themes/theme';
-import LoadingSpinner from '../common/LoadingSpinner';
+import LoadingSpinner from './common/LoadingSpinner';
 import _ from 'lodash';
 
 const MotionBox = motion(Box);

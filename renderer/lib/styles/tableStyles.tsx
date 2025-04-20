@@ -5,7 +5,7 @@
 // Common table styles
 export const tableStyles = {
   height: 0,
-  maxWidth: "600px",
+  width: "100%",
   minWidth: "300px",
   fontSize: 'sm'
 };

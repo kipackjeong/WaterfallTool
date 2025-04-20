@@ -390,7 +390,7 @@ async function getWaterfallCohortListData(user: User, instanceState: InstanceVie
                     .value();
 
                 // Append to keywords string
-                return acc + mapping.keyword + '-';
+                return acc + mapping.tabName + '-';
             }, '');
 
             // Initialize empty array for combined keywords

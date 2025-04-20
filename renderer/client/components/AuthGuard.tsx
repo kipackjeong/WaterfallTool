@@ -2,7 +2,7 @@ import { ReactNode, useState, useEffect } from 'react';
 import { Box, useDisclosure, Flex } from '@chakra-ui/react';
 import { useAuth } from '../../lib/contexts/authContext';
 import LoginModal from './LoginModal';
-import LoadingSpinner from '../common/LoadingSpinner';
+import LoadingSpinner from './common/LoadingSpinner';
 
 interface AuthGuardProps {
   children: ReactNode;

@@ -8,12 +8,10 @@ import {
   Tr,
   Th,
   Td,
-  Box,
   useColorMode
 } from '@chakra-ui/react';
 import { getTableBorderColor } from '@/lib/themes/theme';
 import { useInstanceStore } from '@/lib/states/instanceState';
-import LoadingSpinner from '@/client/common/LoadingSpinner';
 import _ from 'lodash';
 import {
   tableStyles,
