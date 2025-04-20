@@ -200,7 +200,7 @@ const Sidebar = () => {
             table: tableInfo.name,
             sqlConfig: sqlServerInfo.sqlConfig
         });
-    }, [user, instanceState, setInstance]);
+    }, [user, instanceState]);
 
     const toggleDatabase = useCallback((databaseName) => {
         setExpandedDatabases((prevState) => ({
@@ -212,7 +212,7 @@ const Sidebar = () => {
     const navigateToDashboard = useCallback(() => {
         // Clear the instance state to show the dashboard
         setInstance(user, null);
-    }, [user, setInstance]);
+    }, [user]);
     return (
         <>
             <DatabaseConnectionForm isOpen={showDatabaseForm} onSuccess={() => fetchProjects(false)} />

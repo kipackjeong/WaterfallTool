@@ -71,7 +71,7 @@ const CohortTable: React.FC = () => {
   const tableBorderColor = getTableBorderColor(colorMode);
 
   // Fetch the data from the instance state
-  const { instanceState, setInstance } = useInstanceStore(state => state);
+  const { instanceState } = useInstanceStore(state => state);
 
   return (
     <Suspense fallback={<Spinner />}>

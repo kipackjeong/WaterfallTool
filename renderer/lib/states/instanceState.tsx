@@ -46,7 +46,7 @@ export const createInstanceStore = (
 
                     // INSTANCE STATE ACTIONS
                     setInstance: async (user: User, newInstanceState: InstanceViewModel) => {
-                        console.log('[setInstance] Starting...')
+                        console.debug('[setInstance] Start ---')
                         // Try to load from sessionStorage first
                         try {
                             const mappingNames: string[] = await queryMappingNames(user, newInstanceState);
@@ -59,23 +59,19 @@ export const createInstanceStore = (
                                     count: (await getMappingDataCount(user, newInstanceState, keyword))?.[0]?.ROW_COUNT || 0
                                 }))
                             );
-                            // Update the waterfallCohortListData after saving mappings
-                            const newWaterfallCohortListData = await getWaterfallCohortListData(user, newInstanceState, get().mappingsState);
 
                             set(prevState => {
                                 const newState = _.cloneDeep(prevState);
                                 newState.instanceState = {
                                     ...newInstanceState,
                                     numericTableData,
-                                    waterfallCohortsTableData,
-                                    waterfallCohortListData: newWaterfallCohortListData
+                                    waterfallCohortsTableData
                                 };
                                 newState.mappingsState = null;
                                 return newState;
                             });
-
                         } catch (err) {
-                            console.error('Error setting instance view state:', err);
+                            console.error('[setInstance] Error setting instance view state:', err);
                             // Still update with the new instance state even if data fetching fails
                             set(prevState => {
                                 const newState = _.cloneDeep(prevState);
@@ -84,23 +80,32 @@ export const createInstanceStore = (
                                 return newState;
                             });
                         } finally {
-                            console.log('[setInstance] Completed')
+                            console.debug('[setInstance] End ---')
                         }
                     },
                     // MAPPINGS STATE ACTIONS
                     setMappingsState: async (user, instanceState: InstanceViewModel) => {
-                        console.debug('setMappingsState called')
+                        console.debug('[setMappingsState] Start ---')
                         try {
                             const mappingsState = await _getMappingsState(user, instanceState);
+
+                            // Update the waterfallCohortListData after saving mappings
+                            const newWaterfallCohortListData = await getWaterfallCohortListData(user, instanceState, mappingsState);
+
                             // Update state
                             set(prevState => {
                                 const newState = _.cloneDeep(prevState);
                                 newState.mappingsState = mappingsState;
+                                newState.instanceState = {
+                                    ...instanceState,
+                                    waterfallCohortListData: newWaterfallCohortListData
+                                };
                                 return newState;
                             });
                         } catch (err) {
-                            console.error('Error setting mappings array state:', err);
+                            console.error('[setMappingsState] Error setting mappings array state:', err);
                         }
+                        console.debug('[setMappingsState] End ---')
                     },
 
                     refreshMappingsState: async (user, instanceState: InstanceViewModel) => {

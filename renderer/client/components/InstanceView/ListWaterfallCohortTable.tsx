@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Table,
   Thead,
@@ -34,13 +34,17 @@ const ListWaterfallCohortTable: React.FC<ListWaterfallCohortTableProps> = () => 
   // Fetch the data from the instance state
   const { instanceState } = useInstanceStore(state => state);
 
-  // Use the real data from the instance state or empty arrays if not available
-  const columns = instanceState?.waterfallCohortListData ?? {} as Record<string, any[]>;
+  const [columns, setColumns] = useState({} as Record<string, any[]>);
+  const [maxRowCount, setMaxRowCount] = useState(0);
 
-  // Find the maximum length of all columns to determine the number of rows
-  const maxRowCount = Object.values(columns).reduce(
-    (max, column) => Math.max(max, Array.isArray(column) ? column.length : 0), 0
-  );
+  useEffect(() => {
+    console.debug('ListWaterfallCohortTable useEffect');
+    const _columns = instanceState?.waterfallCohortListData;
+    setColumns(_columns ?? {} as Record<string, any[]>);
+    setMaxRowCount(_columns ? Object.values(_columns).reduce(
+      (max, column) => Math.max(max, Array.isArray(column) ? column.length : 0), 0
+    ) : 0);
+  }, [instanceState.waterfallCohortListData])
 
   // If there's no data and we're not loading, show a message
   if (maxRowCount === 0) {
